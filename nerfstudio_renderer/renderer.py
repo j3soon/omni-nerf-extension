@@ -70,7 +70,7 @@ class RendererCameraConfig:
 		"""
 		return len(self.cameras)
 	
-	def __item__(self, idx):
+	def __getitem__(self, idx):
 		"""
 		Returns
 		----------
