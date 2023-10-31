@@ -1,6 +1,9 @@
 import json
+import pathlib
 from nerfstudio.utils.eval_utils import eval_setup
+from nerfstudio.utils import colormaps
 from pathlib import Path
+from .utils import *
 
 class RendererCameraConfig:
 	"""
@@ -104,7 +107,7 @@ class NerfStudioRenderer():
             test_mode='inference',
         )
 
-	def render_at(quality_bound, position, rotation):
+	def render_at(self, quality_bound, position, rotation):
 		"""
 		Parameters
 		----------
@@ -123,4 +126,18 @@ class NerfStudioRenderer():
 		np.array
 			An np array of rgb values.
 		"""
-		pass
+		# Obtain a Cameras object, and transform it to the same device as the pipeline.
+		quality_bound = max(min(quality_bound, len(self.camera_config) - 1), 0)
+		camera_config = self.camera_config[quality_bound]
+		c2w_matrix = camera_to_world_matrix(position, rotation)
+		cameras = create_cameras(c2w_matrix, camera_config).to(self.pipeline.device)
+
+		# Obtain a ray bundle with this Cameras
+		ray_bundle = cameras.generate_rays(camera_indices=0, aabb_box=None)
+
+		# Inference
+		with torch.no_grad():
+			outputs = self.pipeline.model.get_outputs_for_camera_ray_bundle(ray_bundle)['rgb']
+
+		# Return results
+		return outputs.cpu().numpy()
