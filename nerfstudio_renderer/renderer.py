@@ -116,10 +116,10 @@ class NerfStudioRenderer():
 			give rendered images with at least the specified quality.
 
 		position : list[float]
-			The 3-element list specifying the camera position.
+			A 3-element list specifying the camera position.
 
 		rotation : list[float]
-			The 3-element list specifying the camera rotation, in euler angles.
+			A 3-element list specifying the camera rotation, in euler angles.
 
 		Returns
 		----------
