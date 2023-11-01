@@ -104,7 +104,7 @@ def create_cameras(camera_to_world_matrix, camera_config):
 	focal_length = three_js_perspective_camera_focal_length(camera_config['fov'], camera_config['height'])
 
 	# Only use the first 3 rows of the c2w matrix, as the last row is always [0 0 0 1].
-	camera_to_worlds = torch.tensor(camera_to_world_matrix).view(4, 4)[:3].view(1, -1)
+	camera_to_worlds = torch.tensor(camera_to_world_matrix).view(4, 4)[:3].view(1, 3, 4)
 
 	return Cameras(
 		fx=torch.tensor([focal_length]),
