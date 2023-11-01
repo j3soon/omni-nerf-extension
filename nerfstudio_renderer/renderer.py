@@ -86,23 +86,22 @@ class NerfStudioRenderer():
 	and a desired quality bound.
 	"""
 
-	def __init__(self, model_config, camera_config_path=None, eval_num_rays_per_chunk=None):
+	def __init__(self, model_config_path, camera_config, eval_num_rays_per_chunk=None):
 		"""
 		Parameters
 		----------
-		model_config : Path
+		model_config_path : Path
 			The path to model configuration .yml file.
 
-		camera_config_path : str, optional
-			The path to the config file. 
-			Uses `RendererCameraConfig.default_config()` when not assigned.
+		camera_config : RendererCameraConfig
+			The RendererCameraConfig for camera config. 
 
 		eval_num_rays_per_chunk : int, optional
 			The parameter `eval_num_rays_per_chunk` to pass to `nerfstudio.utils.eval_utils.eval_setup`
 		"""
-		self.camera_config = RendererCameraConfig.load_config(camera_config_path)
+		self.camera_config = camera_config
 		self.model_config, self.pipeline, _, _ = eval_setup(
-            model_config,
+            model_config_path,
             eval_num_rays_per_chunk=eval_num_rays_per_chunk,
             test_mode='inference',
         )

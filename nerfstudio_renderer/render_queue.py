@@ -38,7 +38,8 @@ class NerfStudioRenderQueue():
         """
         self.recent_camera_position = ()
         self.recent_camera_rotation = ()
-        self.renderer = NerfStudioRenderer(model_config_path, camera_config_path, eval_num_rays_per_chunk)
+        camera_config = RendererCameraConfig.load_config(camera_config_path)
+        self.renderer = NerfStudioRenderer(model_config_path, camera_config, eval_num_rays_per_chunk)
 
     def register_render_request(self, position, rotation, callback):
         """
