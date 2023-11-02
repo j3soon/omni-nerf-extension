@@ -114,6 +114,10 @@ class NerfStudioRenderQueue():
         eval_num_rays_per_chunk : int, optional
             The parameter `eval_num_rays_per_chunk` to pass to `nerfstudio.utils.eval_utils.eval_setup`
         """
+        # Construct camera config and renderer
+        self.camera_config = RendererCameraConfig.load_config(camera_config_path)
+        self.renderer = NerfStudioRenderer(model_config_path, eval_num_rays_per_chunk)
+
         # Data maintained for optimization:
         # The most recently rendered camera position.
         self._recent_camera_position = ()
@@ -125,10 +129,9 @@ class NerfStudioRenderQueue():
         self._recent_accepted_request_id = -1
         # The data lock for avoiding race conditions
         self._data_lock = threading.Lock()
-
-        # Construct camera config and renderer
-        self.camera_config = RendererCameraConfig.load_config(camera_config_path)
-        self.renderer = NerfStudioRenderer(model_config_path, eval_num_rays_per_chunk)
+        # The semaphores for preventing intense request bursts.
+        self._semaphores_by_quality = [threading.Semaphore(config['num_allowed_render_calls']) 
+                                       for config in self.camera_config]
 
     def register_render_request(self, position, rotation, callback):
         """
@@ -171,15 +174,28 @@ class NerfStudioRenderQueue():
             if delay_before_render_call > 0:
                 time.sleep(delay_before_render_call)
 
+            # Optimization: Semaphores By Quality
+            # If an intense request burst happens, a series of costly calls can clog up computation resources really fast.
+            # The thread of a request can be blocked, if too many requests are already running calls of the same quality index.
+            # Say a bunch of high-quality, costly calls are blocked, because some have made costly calls but have not obtained results.
+            # When a vacancy is available, these blocked calls may proceed, but most of them will be invalidated by check-before-call.
+            # Among the many blocked costly calls, only the one from the newest request may proceed.
+            # Intuitively, we try to select newer requests to make costly calls with this optimization.
+            self._semaphores_by_quality[quality_index].acquire()
+
             # Optimization: Check Before Call
             # A request can be invalidated before a call of it is made,
             # if there are newer requests accepted.
             with self._data_lock:
                 if request_id < self._recent_accepted_request_id:
+                    self._semaphores_by_quality[quality_index].release()
                     return
 
             # Render the image
             image = self.renderer.render_at(position, rotation, config_entry['width'], config_entry['height'], config_entry['fov'])
+
+            # Release the semaphore acquired from semaphores-by-quality after the render call is done.
+            self._semaphores_by_quality[quality_index].release()
 
             # Optimization: Check After Call
             # When a call is finished, its results may no longer be needed (i.e., obsolete)
