@@ -159,5 +159,14 @@ class NerfStudioRenderQueue():
         # When rendering of lower qualities are done, serially move to higher ones.
         for quality_index, config_entry in enumerate(self.camera_config):
             # For each config of different quality: obtain the rendered image, and then call the callback.
+
+            # Optimization: Check Before Call
+            # A request can be invalidated before a call of it is made,
+            # if there are newer requests accepted.
+            with self._data_lock:
+                if request_id < self._recent_accepted_request_id:
+                    return
+
+            # Render the image & Callback
             image = self.renderer.render_at(position, rotation, config_entry['width'], config_entry['height'], config_entry['fov'])
             callback(image)
