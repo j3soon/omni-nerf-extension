@@ -160,6 +160,17 @@ class NerfStudioRenderQueue():
         for quality_index, config_entry in enumerate(self.camera_config):
             # For each config of different quality: obtain the rendered image, and then call the callback.
 
+            # Optimization: Delay Before Call
+            # Apply a small delay before calls (and checks-before-calls), especially costly ones.
+            # This prevents a costly call from occupying the computation resources (usually GPUs) too early,
+            # as newer requests can invalidate this request with less costly calls.
+            # Intuitively, only when the camera stays at a place for very long (longer than the delay) 
+            # that we can confidently start costly, high-quality calls.
+            # If after the delay, new requests come in, this older request will be invalidated in check-before-call.
+            delay_before_render_call = config_entry['delay_before_render_call']
+            if delay_before_render_call > 0:
+                time.sleep(delay_before_render_call)
+
             # Optimization: Check Before Call
             # A request can be invalidated before a call of it is made,
             # if there are newer requests accepted.
