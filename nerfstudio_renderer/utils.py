@@ -82,7 +82,7 @@ def camera_to_world_matrix(position, rotation):
 
 	return camera_to_world_matrix
 
-def create_cameras(camera_to_world_matrix, camera_config):
+def create_cameras(camera_to_world_matrix, width, height, fov):
 	"""
 	Constructs a Cameras object based on a c2w matrix,
 	and a camera configuration from RendererCameraConfig.
@@ -92,8 +92,14 @@ def create_cameras(camera_to_world_matrix, camera_config):
 	camera_to_world_matrix : np.array
 		A 3-element list of floats representing the position of the camera.
 
-	camera_config : dict
-		A camera configuration taken from indexing a RendererCameraConfig object.
+	width : int
+		The width of the camera.
+
+	height : int
+		The height of the camera.
+
+	fov : float
+		The field-of-view of the camera.
 
 	Returns
 	----------
@@ -101,7 +107,7 @@ def create_cameras(camera_to_world_matrix, camera_config):
 		A Cameras object.
 	"""
 	# Compute camera focal length
-	focal_length = three_js_perspective_camera_focal_length(camera_config['fov'], camera_config['height'])
+	focal_length = three_js_perspective_camera_focal_length(fov, height)
 
 	# Only use the first 3 rows of the c2w matrix, as the last row is always [0 0 0 1].
 	camera_to_worlds = torch.tensor(camera_to_world_matrix).view(4, 4)[:3].view(1, 3, 4)
@@ -109,8 +115,8 @@ def create_cameras(camera_to_world_matrix, camera_config):
 	return Cameras(
 		fx=torch.tensor([focal_length]),
 		fy=torch.tensor([focal_length]),
-		cx=camera_config['width'] / 2,
-		cy=camera_config['height'] / 2,
+		cx=width / 2,
+		cy=height / 2,
 		camera_to_worlds=camera_to_worlds,
 		camera_type=CameraType.PERSPECTIVE,
 		times=None,
