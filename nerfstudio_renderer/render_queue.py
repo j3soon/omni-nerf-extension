@@ -140,4 +140,15 @@ class NerfStudioRenderQueue():
         callback : function(np.array)
             A callback function to call when the renderer finishes this request.
         """
-        pass
+        request_time = time.time()
+        renderer_call_args = (request_time, position, rotation, callback)
+        thread = threading.Thread(target=self._progressive_renderer_call, args=renderer_call_args)
+        thread.start()
+	
+    def _progressive_renderer_call(self, request_time, position, rotation, callback):
+        # For each render request, try to deliver the render output of the lowest quality fast.
+        # When rendering of lower qualities are done, serially move to higher ones.
+        for quality_index, config_entry in enumerate(self.camera_config):
+            # For each config of different quality: obtain the rendered image, and then call the callback.
+            image = self.renderer.render_at(position, rotation, config_entry['width'], config_entry['height'], config_entry['fov'])
+            callback(image)
