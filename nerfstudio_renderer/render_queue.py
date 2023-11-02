@@ -1,14 +1,95 @@
 import time
-from .renderer import *
+import threading
+from renderer import *
+
+class RendererCameraConfig:
+	"""
+	This class contains functions used to load
+	camera configurations for the NerfStudioRenderQueue to use.
+
+	The configuration is a list of dicts.
+	The NerfStudioRenderQueue is then able to render differently
+	sized images with respect to each configuration, 
+	for performance considerations for example.
+	"""
+
+	def __init__(self, cameras_config):
+		"""
+		Parameters
+		----------
+		cameras_config : list[dict]
+			A list of dicts that describes different camera configurations.
+			Each element is of the form { 
+                'width': int,                       # The targeted rendered width
+                'height': int,                      # The targeted rendered height
+                'fov': float,                       # The targeted rendered height
+                'num_allowed_render_calls': int,    # The maximum number of render calls allowed for this configuration
+                'delay_before_render_call': int     # The delay before making a render call for this configuration
+            }
+		"""
+		self.cameras = cameras_config
+
+	def default_config():
+		"""
+		Returns a default configuration, where there are 2 cameras,
+		one for accelerated and estimated rendering, and another for 
+		high-resolution display.
+
+		Returns
+		----------
+		RendererCameraConfig
+			A default config.
+		"""
+		return RendererCameraConfig([
+			{ 'width': 90,  'height': 42,  'fov': 72, 'num_allowed_render_calls': 5, 'delay_before_render_call': 0   },
+			{ 'width': 900, 'height': 420, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.1 }
+		])
+
+	def load_config(file_path=None):
+		"""
+		Returns a configuration defined by a json-formatted file.
+		
+		Parameters
+		----------
+		file_path : str, optional
+			The path to the config file.
+
+		Returns
+		----------
+		RendererCameraConfig
+			A config specified by `file_path`, or a default one.
+		"""
+		if file_path is None:
+			return RendererCameraConfig.default_config()
+		with open(file_path, 'r') as f:
+			return RendererCameraConfig(json.load(f))
+		
+	def __len__(self):
+		"""
+		Returns
+		----------
+		int
+			The number of cameras in this configuration list.
+		"""
+		return len(self.cameras)
+	
+	def __getitem__(self, idx):
+		"""
+		Returns
+		----------
+		dict
+			The camera configuration indexed by `idx`.
+		"""
+		return self.cameras[idx]
 
 class NerfStudioRenderQueue():
     """
 	The class encapsulates NerfStudioRenderer and provides
     a mechanism that aims at minimizing rendering latency,
     via an interface that allows registration of rendering
-    requests. Each request may or may not be served. 
-    The render queue attempts to deliver rendering results
-    of the latest request in time.
+    requests. The render queue attempts to deliver 
+    rendering results of the latest request in time, so 
+    requests are not guaranteed to be served.
 
     Attributes
     ----------
@@ -17,6 +98,9 @@ class NerfStudioRenderQueue():
 
     recent_camera_rotation : tuple[float]
         Represents the most recently rendered camera rotation.
+	
+	camera_config : RendererCameraConfig
+        The different configurations of cameras (different qualities, etc.).
 
     renderer : NerfStudioRenderer
         The NerfStudioRenderer used to actually give rendered images.
@@ -38,8 +122,8 @@ class NerfStudioRenderQueue():
         """
         self.recent_camera_position = ()
         self.recent_camera_rotation = ()
-        camera_config = RendererCameraConfig.load_config(camera_config_path)
-        self.renderer = NerfStudioRenderer(model_config_path, camera_config, eval_num_rays_per_chunk)
+        self.camera_config = RendererCameraConfig.load_config(camera_config_path)
+        self.renderer = NerfStudioRenderer(model_config_path, eval_num_rays_per_chunk)
 
     def register_render_request(self, position, rotation, callback):
         """
