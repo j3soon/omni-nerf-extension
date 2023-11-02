@@ -93,12 +93,6 @@ class NerfStudioRenderQueue():
 
     Attributes
     ----------
-    recent_camera_position : tuple[float]
-        Represents the most recently rendered camera position.
-
-    recent_camera_rotation : tuple[float]
-        Represents the most recently rendered camera rotation.
-	
 	camera_config : RendererCameraConfig
         The different configurations of cameras (different qualities, etc.).
 
@@ -120,8 +114,19 @@ class NerfStudioRenderQueue():
         eval_num_rays_per_chunk : int, optional
             The parameter `eval_num_rays_per_chunk` to pass to `nerfstudio.utils.eval_utils.eval_setup`
         """
-        self.recent_camera_position = ()
-        self.recent_camera_rotation = ()
+        # Data maintained for optimization:
+        # The most recently rendered camera position.
+        self._recent_camera_position = ()
+        # The most recently rendered camera rotation.
+        self._recent_camera_rotation = ()
+        # The most recently completed request id
+        self._recent_complete_request_id = 0
+        # The most recently accepted request id
+        self._recent_accepted_request_id = -1
+        # The data lock for avoiding race conditions
+        self._data_lock = threading.Lock()
+
+        # Construct camera config and renderer
         self.camera_config = RendererCameraConfig.load_config(camera_config_path)
         self.renderer = NerfStudioRenderer(model_config_path, eval_num_rays_per_chunk)
 
@@ -140,12 +145,16 @@ class NerfStudioRenderQueue():
         callback : function(np.array)
             A callback function to call when the renderer finishes this request.
         """
-        request_time = time.time()
-        renderer_call_args = (request_time, position, rotation, callback)
+        # Increment the most recently accepted request id by 1
+        with self._data_lock:
+              self._recent_accepted_request_id += 1
+
+        # Start a thread of this render request, with request id attached.
+        renderer_call_args = (self._recent_accepted_request_id, position, rotation, callback)
         thread = threading.Thread(target=self._progressive_renderer_call, args=renderer_call_args)
         thread.start()
 	
-    def _progressive_renderer_call(self, request_time, position, rotation, callback):
+    def _progressive_renderer_call(self, request_id, position, rotation, callback):
         # For each render request, try to deliver the render output of the lowest quality fast.
         # When rendering of lower qualities are done, serially move to higher ones.
         for quality_index, config_entry in enumerate(self.camera_config):
