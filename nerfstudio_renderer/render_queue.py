@@ -167,6 +167,19 @@ class NerfStudioRenderQueue():
                 if request_id < self._recent_accepted_request_id:
                     return
 
-            # Render the image & Callback
+            # Render the image
             image = self.renderer.render_at(position, rotation, config_entry['width'], config_entry['height'], config_entry['fov'])
+
+            # Optimization: Check After Call
+            # When a call is finished, its results may no longer be needed (i.e., obsolete)
+            # Maintain the most recent request id that completed (some of) its render calls.
+            # If a newer request has finished a call before this request, discard the results.
+            # Using completed request id (instead of accepted request id) prevents the situation where no results are accepted.
+            with self._data_lock:
+                if request_id < self._recent_complete_request_id:
+                    return
+                else:
+                    self._recent_complete_request_id = request_id
+            
+            # Callback
             callback(image)
