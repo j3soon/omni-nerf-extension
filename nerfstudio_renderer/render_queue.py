@@ -147,7 +147,7 @@ class NerfStudioRenderQueue():
         """
         # Increment the most recently accepted request id by 1
         with self._data_lock:
-              self._recent_accepted_request_id += 1
+            self._recent_accepted_request_id += 1
 
         # Start a thread of this render request, with request id attached.
         renderer_call_args = (self._recent_accepted_request_id, position, rotation, callback)
