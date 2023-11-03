@@ -42,7 +42,8 @@ class RendererCameraConfig:
 		"""
 		return RendererCameraConfig([
 			{ 'width': 90,  'height': 42,  'fov': 72, 'num_allowed_render_calls': 5, 'delay_before_render_call': 0   },
-			{ 'width': 450, 'height': 210, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.15 }
+            { 'width': 180, 'height': 84,  'fov': 72, 'num_allowed_render_calls': 3, 'delay_before_render_call': 0.05 },
+			{ 'width': 450, 'height': 210, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.10 }
 		])
 
 	def load_config(file_path=None):
@@ -104,7 +105,7 @@ class NerfStudioRenderQueue():
                  model_config_path, 
                  camera_config_path=None, 
                  eval_num_rays_per_chunk=None, 
-                 pose_check_position_threshold=0.0001,
+                 pose_check_position_threshold=0.00001,
                  pose_check_rotation_threshold=3):
         """
         Parameters
