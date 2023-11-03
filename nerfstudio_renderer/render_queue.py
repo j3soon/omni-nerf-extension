@@ -146,13 +146,24 @@ class NerfStudioRenderQueue():
         self._recent_accepted_request_id = -1
         # The data lock for avoiding race conditions
         self._data_lock = threading.Lock()
+        # The image lock for avoiding race conditions
+        self._image_lock = threading.Lock()
         # The semaphores for preventing intense request bursts.
         self._semaphores_by_quality = [threading.Semaphore(config['num_allowed_render_calls']) 
                                        for config in self.camera_config]
+        # The most recently completed render image
+        self._recent_complete_image = None
 
-    def register_render_request(self, position, rotation, callback):
+    def get_rgb_image(self):
+        with self._image_lock:
+            image = self._recent_complete_image
+            self._recent_complete_image = None
+            return image
+
+    def update_camera(self, position, rotation):
         """
-        Registers a request to render with NerfStudioRenderer.
+        Notifies an update to the camera pose.
+        This may or may not result in a new render request.
 
         Parameters
         ----------
@@ -161,9 +172,6 @@ class NerfStudioRenderQueue():
 
         rotation : list[float]
             A 3-element list specifying the camera rotation, in euler angles.
-
-        callback : function(np.array)
-            A callback function to call when the renderer finishes this request.
         """
         # Optimization: Pose Check
         # If this upcoming request has the (almost) same camera pose: position and rotation
@@ -178,15 +186,15 @@ class NerfStudioRenderQueue():
             self._recent_accepted_request_id += 1
 
         # Start a thread of this render request, with request id attached.
-        renderer_call_args = (self._recent_accepted_request_id, position, rotation, callback)
+        renderer_call_args = (self._recent_accepted_request_id, position, rotation)
         thread = threading.Thread(target=self._progressive_renderer_call, args=renderer_call_args)
         thread.start()
 	
-    def _progressive_renderer_call(self, request_id, position, rotation, callback):
+    def _progressive_renderer_call(self, request_id, position, rotation):
         # For each render request, try to deliver the render output of the lowest quality fast.
         # When rendering of lower qualities are done, serially move to higher ones.
         for quality_index, config_entry in enumerate(self.camera_config):
-            # For each config of different quality: obtain the rendered image, and then call the callback.
+            # For each config of different quality: obtain the rendered image, and then record the results if needed.
 
             # Optimization: Delay Before Call
             # Apply a small delay before calls (and checks-before-calls), especially costly ones.
@@ -233,8 +241,8 @@ class NerfStudioRenderQueue():
                 else:
                     self._recent_complete_request_id = request_id
             
-            # Callback
-            callback(image)
+            with self._image_lock:
+                self._recent_complete_image = image
 
     def _is_pose_check_failed(self, position, rotation):
           position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._recent_camera_position)])
