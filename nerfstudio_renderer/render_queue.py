@@ -42,7 +42,7 @@ class RendererCameraConfig:
 		"""
 		return RendererCameraConfig([
 			{ 'width': 90,  'height': 42,  'fov': 72, 'num_allowed_render_calls': 5, 'delay_before_render_call': 0   },
-			{ 'width': 900, 'height': 420, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.1 }
+			{ 'width': 450, 'height': 210, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.15 }
 		])
 
 	def load_config(file_path=None):
