@@ -239,4 +239,4 @@ class NerfStudioRenderQueue():
     def _is_pose_check_failed(self, position, rotation):
           position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._recent_camera_position)])
           rotation_diff = sum([(a - b) for a, b in zip(rotation, self._recent_camera_rotation)])
-          return (position_diff >= self._pose_check_position_threshold) and (rotation_diff >= self._pose_check_rotation_threshold)
+          return (position_diff < self._pose_check_position_threshold) and (rotation_diff < self._pose_check_rotation_threshold)
