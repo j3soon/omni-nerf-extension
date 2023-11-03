@@ -155,6 +155,16 @@ class NerfStudioRenderQueue():
         self._recent_complete_image = None
 
     def get_rgb_image(self):
+        """
+        Retrieve the most recently ready rgb image.
+        If no rgb images have been rendered since last call of `get_rgb_image`, returns None.
+
+        Returns
+        ----------
+        np.array or None
+            If applicable, returns an np array of size (width, height, 3) and with values ranging from 0 to 1.
+            Otherwise, returns None.
+        """
         with self._image_lock:
             image = self._recent_complete_image
             self._recent_complete_image = None
@@ -190,6 +200,7 @@ class NerfStudioRenderQueue():
         thread = threading.Thread(target=self._progressive_renderer_call, args=renderer_call_args)
         thread.start()
 	
+    # Processes a render request by serially serving render calls of different qualities.
     def _progressive_renderer_call(self, request_id, position, rotation):
         # For each render request, try to deliver the render output of the lowest quality fast.
         # When rendering of lower qualities are done, serially move to higher ones.
@@ -244,6 +255,7 @@ class NerfStudioRenderQueue():
             with self._image_lock:
                 self._recent_complete_image = image
 
+    # Checks if camera position is similar to what was recorded.
     def _is_pose_check_failed(self, position, rotation):
           position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._recent_camera_position)])
           rotation_diff = sum([(a - b) for a, b in zip(rotation, self._recent_camera_rotation)])
