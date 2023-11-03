@@ -100,7 +100,12 @@ class NerfStudioRenderQueue():
         The NerfStudioRenderer used to actually give rendered images.
 	"""
     
-    def __init__(self, model_config_path, camera_config_path=None, eval_num_rays_per_chunk=None):
+    def __init__(self, 
+                 model_config_path, 
+                 camera_config_path=None, 
+                 eval_num_rays_per_chunk=None, 
+                 pose_check_position_threshold=0.01,
+                 pose_check_rotation_threshold=5):
         """
         Parameters
         ----------
@@ -113,16 +118,28 @@ class NerfStudioRenderQueue():
 
         eval_num_rays_per_chunk : int, optional
             The parameter `eval_num_rays_per_chunk` to pass to `nerfstudio.utils.eval_utils.eval_setup`
+
+        pose_check_position_threshold : float, optional
+            Two cameras are treated as identical in position, 
+            if the sum of squared differences of their position vectors is under this threshold.
+
+        pose_check_position_threshold : float, optional
+            Two cameras are treated as identical in rotation, 
+            if the sum of differences of their euler angle rotation vectors is under this threshold.
         """
         # Construct camera config and renderer
         self.camera_config = RendererCameraConfig.load_config(camera_config_path)
         self.renderer = NerfStudioRenderer(model_config_path, eval_num_rays_per_chunk)
 
+        # Pose Check Thresholds
+        self._pose_check_position_threshold = pose_check_position_threshold
+        self._pose_check_rotation_threshold = pose_check_rotation_threshold
+
         # Data maintained for optimization:
-        # The most recently rendered camera position.
-        self._recent_camera_position = ()
-        # The most recently rendered camera rotation.
-        self._recent_camera_rotation = ()
+        # The camera position of the most recently accepted request.
+        self._recent_camera_position = (-np.inf, -np.inf, -np.inf)
+        # The camera rotation of the most recently accepted request.
+        self._recent_camera_rotation = (-np.inf, -np.inf, -np.inf)
         # The most recently completed request id
         self._recent_complete_request_id = 0
         # The most recently accepted request id
@@ -148,6 +165,14 @@ class NerfStudioRenderQueue():
         callback : function(np.array)
             A callback function to call when the renderer finishes this request.
         """
+        # Optimization: Pose Check
+        # If this upcoming request has the (almost) same camera pose: position and rotation
+        # with the most recently accepted request, ignore it.
+        if self._is_pose_check_failed(position, rotation):
+              return
+        self._recent_camera_position = (position[0], position[1], position[2])
+        self._recent_camera_rotation = (rotation[0], rotation[1], rotation[2])
+
         # Increment the most recently accepted request id by 1
         with self._data_lock:
             self._recent_accepted_request_id += 1
@@ -210,3 +235,8 @@ class NerfStudioRenderQueue():
             
             # Callback
             callback(image)
+
+    def _is_pose_check_failed(self, position, rotation):
+          position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._recent_camera_position)])
+          rotation_diff = sum([(a - b) for a, b in zip(rotation, self._recent_camera_rotation)])
+          return (position_diff >= self._pose_check_position_threshold) and (rotation_diff >= self._pose_check_rotation_threshold)
