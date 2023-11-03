@@ -104,8 +104,8 @@ class NerfStudioRenderQueue():
                  model_config_path, 
                  camera_config_path=None, 
                  eval_num_rays_per_chunk=None, 
-                 pose_check_position_threshold=0.01,
-                 pose_check_rotation_threshold=5):
+                 pose_check_position_threshold=0.0001,
+                 pose_check_rotation_threshold=3):
         """
         Parameters
         ----------
