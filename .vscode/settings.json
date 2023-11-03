@@ -1,0 +1,30 @@
+{
+    "files.associations": {
+        "*.kit": "toml",
+    },
+    "editor.rulers": [120],
+
+    // Python modules search paths:
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/exts/omni.nerf.viewport",
+        "${workspaceFolder}/app/kit/extscore/omni.kit.pip_archive/pip_prebundle",
+        "${workspaceFolder}/app/kit/kernel/py",
+        "${workspaceFolder}/app/kit/plugins/bindings-python",
+
+    ],
+
+    // Python & Pylance Setup
+    "python.languageServer": "Pylance",
+    "python.pythonPath": "${workspaceFolder}/app/kit/python/bin/python3",
+    "python.defaultInterpreterPath": "${workspaceFolder}/app/kit/python/bin/python3",
+
+    // We use "black" as a formatter:
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": ["--line-length", "120"],
+
+    // Use flake8 for linting
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": ["--max-line-length=120"]
+}
