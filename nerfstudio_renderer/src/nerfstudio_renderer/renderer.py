@@ -3,7 +3,7 @@ import pathlib
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils import colormaps
 from pathlib import Path
-from utils import *
+from nerfstudio_renderer.utils import *
 
 class NerfStudioRenderer():
 	"""

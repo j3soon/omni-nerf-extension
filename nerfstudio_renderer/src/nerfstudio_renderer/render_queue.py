@@ -1,6 +1,6 @@
 import time
 import threading
-from renderer import *
+from nerfstudio_renderer.renderer import *
 
 class RendererCameraConfig:
 	"""
