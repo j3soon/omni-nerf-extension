@@ -59,7 +59,7 @@ conn.execute('del rq')
 ## Running with A Test Script (Pygame)
 
 ```
-python pygame.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
+python pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
 ```
 
 ## Notes
