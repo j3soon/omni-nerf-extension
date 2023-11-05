@@ -1,6 +1,6 @@
 # Nerfstudio Renderer
 
-## Run inside Docker
+## Docker Setup
 
 Build the dockerfile with a specified server port.
 ```
@@ -21,6 +21,8 @@ docker run \
     -d \
     nerfstudio-renderer-86
 ```
+
+## Running Inside Docker
 
 Upon success, it is possible to connect to the server with [rpyc](https://github.com/tomerfiliba-org/rpyc).
 ```python
@@ -53,6 +55,14 @@ image = conn.eval('rq.get_rgb_image()')
 # Delete remote render queue
 conn.execute('del rq')
 ```
+
+## Running with A Test Script (Pygame)
+
+```
+python pygame.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
+```
+
+## Notes
 
 - `NerfStudioRenderQueue.update_camera` can be called whenever needed. The renderer will progressively render better images serially. Each update to the camera will result in an asynchronous rendering series.
 - `NerfStudioRenderQueue.get_rgb_image` will always return a newly rendered image.
