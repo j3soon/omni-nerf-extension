@@ -58,8 +58,11 @@ conn.execute('del rq')
 
 ## Running with A Test Script (Pygame)
 
+Outside the container, run:
+
 ```
-python pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
+pip3 install -r requirements.txt
+python3 pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
 ```
 
 ## Notes
