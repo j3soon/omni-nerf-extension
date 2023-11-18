@@ -1,30 +1,45 @@
 # Nerfstudio Renderer
 
+The following instructions assume you are in the `/nerfstudio_renderer` directory under the git repository root.
+
+## Prepare NeRF Model Checkpoint
+
+Train a NeRF and store the weights of the `poster` scene in `./data`. You can check it with the following command:
+
+```sh
+ls ./data/outputs/poster/nerfacto/<DATE_TIME>/config.yml
+```
+
 ## Docker Setup
 
-Build the dockerfile with a specified server port.
-```
+Build the dockerfile with server port `7007`.
+
+```sh
 docker build \
-    --build-arg CUDA_VERSION=11.8.0 \
-    --build-arg CUDA_ARCHITECTURES=86 \
-    --build-arg OS_VERSION=22.04 \
-    --build-arg SERVER_PORT=7007 \
-    --tag nerfstudio-renderer-86 .
+  --build-arg CUDA_VERSION=11.8.0 \
+  --build-arg CUDA_ARCHITECTURES=86 \
+  --build-arg OS_VERSION=22.04 \
+  --build-arg SERVER_PORT=7007 \
+  --tag nerfstudio-renderer-86 .
 ```
 
 And run it:
-```
+
+```sh
 docker run \
-    --gpus all \
-    -p 7007:7007 \
-    --shm-size=6gb \
-    -d \
-    nerfstudio-renderer-86
+  --name nerfstudio-renderer \
+  --gpus all \
+  --rm \
+  -v $(pwd)/data/outputs:/workspace/outputs \
+  -p 7007:7007 \
+  --shm-size=6gb \
+  nerfstudio-renderer-86
 ```
 
 ## Running Inside Docker
 
 Upon success, it is possible to connect to the server with [rpyc](https://github.com/tomerfiliba-org/rpyc).
+
 ```python
 import rpyc
 import random
@@ -60,9 +75,10 @@ conn.execute('del rq')
 
 Outside the container, run:
 
-```
+```sh
 pip3 install -r requirements.txt
-python3 pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
+# python3 pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
+python3 pygame_test.py --model_config_path=/workspace/outputs/poster/nerfacto/<DATE_TIME>/config.yml
 ```
 
 ## Notes
