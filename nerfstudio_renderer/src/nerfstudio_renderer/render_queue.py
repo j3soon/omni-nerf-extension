@@ -103,8 +103,9 @@ class NerfStudioRenderQueue():
     
     def __init__(self, 
                  model_config_path, 
-                 camera_config_path=None, 
-                 eval_num_rays_per_chunk=None, 
+                 checkpoint_path,
+                 device,
+                 camera_config_path=None,
                  pose_check_position_threshold=0.00001,
                  pose_check_rotation_threshold=3):
         """
@@ -117,9 +118,6 @@ class NerfStudioRenderQueue():
             The path to the config file. 
 			Uses `RendererCameraConfig.default_config()` when not assigned.
 
-        eval_num_rays_per_chunk : int, optional
-            The parameter `eval_num_rays_per_chunk` to pass to `nerfstudio.utils.eval_utils.eval_setup`
-
         pose_check_position_threshold : float, optional
             Two cameras are treated as identical in position, 
             if the sum of squared differences of their position vectors is under this threshold.
@@ -130,7 +128,7 @@ class NerfStudioRenderQueue():
         """
         # Construct camera config and renderer
         self.camera_config = RendererCameraConfig.load_config(camera_config_path)
-        self.renderer = NerfStudioRenderer(model_config_path, eval_num_rays_per_chunk)
+        self.renderer = NerfStudioRenderer(model_config_path, checkpoint_path, device)
 
         # Pose Check Thresholds
         self._pose_check_position_threshold = pose_check_position_threshold

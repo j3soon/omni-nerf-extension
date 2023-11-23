@@ -12,6 +12,8 @@ def parse_args():
     parser.add_argument("--host", type=str, default='localhost')
     parser.add_argument("--port", type=int, default=7007)
     parser.add_argument("--model_config_path", type=str, required=True)
+    parser.add_argument("--model_checkpoint_path", type=str, required=True)
+    parser.add_argument("--device", type=str, choices=['cpu', 'cuda'], default='cuda')
     args = parser.parse_args()
     return args
 
@@ -20,9 +22,10 @@ def main(args):
     conn = rpyc.classic.connect(args.host, args.port)
     conn.execute('from nerfstudio_renderer import NerfStudioRenderQueue')
     conn.execute('from pathlib import Path')
+    conn.execute('import torch')
 
     # Create a Remote NerfStudioRenderQueue
-    conn.execute(f'rq = NerfStudioRenderQueue(model_config_path=Path("{args.model_config_path}"))')
+    conn.execute(f'rq = NerfStudioRenderQueue(model_config_path=Path("{args.model_config_path}"), checkpoint_path="{args.model_checkpoint_path}", device=torch.device("{args.device}"))')
 
     # Initialize Pygame
     pygame.init()
@@ -82,7 +85,7 @@ def main(args):
         # Update Camera
         conn.execute(f'rq.update_camera({camera_position}, {camera_rotation})')
         
-        if int(time.time()) % 2 == 0:
+        if int(time.time()) % 3 == 0:
             camera_curve_time += 1.0 / 30.0
 
     # Delete remote render queue

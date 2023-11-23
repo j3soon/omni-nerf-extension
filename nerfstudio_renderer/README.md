@@ -2,7 +2,7 @@
 
 The following instructions assume you are in the `/nerfstudio_renderer` directory under the git repository root.
 
-## Prepare NeRF Model Checkpoint
+## Prepare a NeRF Model Checkpoint
 
 Train a NeRF and store the weights of the `poster` scene in `./data`. You can check it with the following command:
 
@@ -51,10 +51,11 @@ conn = rpyc.classic.connect('localhost', port=7007)
 # Imports
 conn.execute('import nerfstudio_renderer')
 conn.execute('from pathlib import Path')
+conn.execute('import torch')
 
 # Create a NerfStudioRenderQueue
 # For some reason, netref-based methods keep resulting in timeouts.
-conn.execute('rq = nerfstudio_renderer.NerfStudioRenderQueue(model_config_path=Path("<MODEL_CONFIG_PATH>"))')
+conn.execute('rq = nerfstudio_renderer.NerfStudioRenderQueue(model_config_path=Path("<MODEL_CONFIG_PATH>"), checkpoint_path="<MODEL_CHECKPOINT_PATH>", device=torch.device("cuda"))')
 
 # Update camera pose
 position = [random.random() for _ in range(3)]
@@ -78,7 +79,7 @@ Outside the container, run:
 ```sh
 pip3 install -r requirements.txt
 # python3 pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
-python3 pygame_test.py --model_config_path=/workspace/outputs/poster/nerfacto/<DATE_TIME>/config.yml
+python3 pygame_test.py --model_config_path=/workspace/outputs/poster/nerfacto/<DATE_TIME>/config.yml --model_checkpoint_path=/workspace/outputs/poster/nerfacto/<DATE_TIME>/nerfstudio_models/<CHECKPOINT_NAME>.ckpt
 ```
 
 ## Notes
