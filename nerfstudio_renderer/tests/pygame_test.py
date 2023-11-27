@@ -63,11 +63,15 @@ def main(args):
             screen_buffer = image * 255
 
         # Cover the screen buffer with an indicator of camera position
-        camera_position_indicator = np.ones((100, 50, 3)) * 255
+        hud_width, hud_height = 100, 50
+        # white background
+        camera_position_indicator = np.ones((hud_width, hud_height, 3)) * 255
+        # horizontal line
         camera_position_indicator[20:80, 24:26, :] = 0
+        # square indicator of current position on map
         camera_position_on_map = round(camera_position[0] * 60 + 20)
         camera_position_indicator[camera_position_on_map-5:camera_position_on_map+5, 20:30, :] = 0
-        screen_buffer[width-100:, height-50:, :] = camera_position_indicator
+        screen_buffer[width-hud_width:, height-hud_height:, :] = camera_position_indicator
 
         # Convert the NumPy array to a Pygame surface
         image_surface = pygame.surfarray.make_surface(screen_buffer)
