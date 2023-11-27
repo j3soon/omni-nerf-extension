@@ -4,41 +4,40 @@ The following instructions assume you are in the `/nerfstudio_renderer` director
 
 ## Prepare a NeRF Model Checkpoint
 
-Train a NeRF and store the weights of the `poster` scene in `./data`. You can check it with the following command:
+Train a NeRF and store the weights of the `poster` scene in `./data`.
+
+For simplicity, please change the datetime and checkpoint name to the following:
 
 ```sh
-ls ./data/outputs/poster/nerfacto/<DATE_TIME>/config.yml
+./data/outputs/poster/nerfacto/DATE_TIME/config.yml
+./data/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt
 ```
 
-## Docker Setup
-
-Build the dockerfile with server port `7007`.
+You can check it with the following command:
 
 ```sh
-docker build \
-  --build-arg CUDA_VERSION=11.8.0 \
-  --build-arg CUDA_ARCHITECTURES=86 \
-  --build-arg OS_VERSION=22.04 \
-  --build-arg SERVER_PORT=7007 \
-  --tag nerfstudio-renderer-86 .
+ls ./data/outputs/poster/nerfacto/DATE_TIME/config.yml
+ls ./data/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt
 ```
 
-And run it:
+## Running with Docker Compose
+
+Run the PyGame test window with the following commands:
 
 ```sh
-docker run \
-  --name nerfstudio-renderer \
-  --gpus all \
-  --rm \
-  -v $(pwd)/data/outputs:/workspace/outputs \
-  -p 7007:7007 \
-  --shm-size=6gb \
-  nerfstudio-renderer-86
+xhost +local:docker
+docker compose up
+# in new shell
+docker exec -it pygame-window bash
+# in container
+./run.sh
+# the initial execution might result in a delay due to the download of the pre-trained torch model.
+# please re-run the script if the script times out.
 ```
 
 ## Running Inside Docker
 
-Upon success, it is possible to connect to the server with [rpyc](https://github.com/tomerfiliba-org/rpyc).
+Alternatively, it is possible to connect to the server with [rpyc](https://github.com/tomerfiliba-org/rpyc) in the `pygame-window` container.
 
 ```python
 import rpyc
@@ -55,7 +54,7 @@ conn.execute('import torch')
 
 # Create a NerfStudioRenderQueue
 # For some reason, netref-based methods keep resulting in timeouts.
-conn.execute('rq = nerfstudio_renderer.NerfStudioRenderQueue(model_config_path=Path("<MODEL_CONFIG_PATH>"), checkpoint_path="<MODEL_CHECKPOINT_PATH>", device=torch.device("cuda"))')
+conn.execute('rq = nerfstudio_renderer.NerfStudioRenderQueue(model_config_path=Path("/workspace/outputs/poster/nerfacto/DATE_TIME/config.yml"), checkpoint_path="/workspace/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt", device=torch.device("cuda"))')
 
 # Update camera pose
 position = [random.random() for _ in range(3)]
@@ -70,16 +69,6 @@ image = conn.eval('rq.get_rgb_image()')
 
 # Delete remote render queue
 conn.execute('del rq')
-```
-
-## Running with A Test Script (Pygame)
-
-Outside the container, run:
-
-```sh
-pip3 install -r requirements.txt
-# python3 pygame_test.py --model_config_path=<MODEL_CONFIG_PATH_IN_DOCKER>
-python3 pygame_test.py --model_config_path=/workspace/outputs/poster/nerfacto/<DATE_TIME>/config.yml --model_checkpoint_path=/workspace/outputs/poster/nerfacto/<DATE_TIME>/nerfstudio_models/<CHECKPOINT_NAME>.ckpt
 ```
 
 ## Notes

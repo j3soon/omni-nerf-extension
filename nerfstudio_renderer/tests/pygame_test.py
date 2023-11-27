@@ -44,7 +44,7 @@ def main(args):
     camera_curve_time = 0
     screen_buffer = np.zeros((width, height, 3), dtype=np.uint8)
 
-    # Camera pose
+    # Camera pose for the poster NeRF model
     camera_position = [0, 0, 0.1722]
     camera_rotation = [0, -152, 0]
 
@@ -84,7 +84,7 @@ def main(args):
 
         # Update Camera
         conn.execute(f'rq.update_camera({camera_position}, {camera_rotation})')
-        
+
         if int(time.time()) % 3 == 0:
             camera_curve_time += 1.0 / 30.0
 
