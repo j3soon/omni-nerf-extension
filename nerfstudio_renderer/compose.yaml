@@ -13,7 +13,8 @@ services:
     ports:
       - "7007:7007"
     volumes:
-      - ./data/outputs:/workspace/outputs
+      - ./data/outputs:/workspace/outputs:ro
+      - ./src:/workspace/src:ro
       - cache:/home/user/.cache
     shm_size: '6gb'
     deploy:

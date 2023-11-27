@@ -3,13 +3,13 @@ FROM dromni/nerfstudio:0.3.4
 ARG SERVER_PORT
 ENV SERVER_PORT=$SERVER_PORT
 
-# Copy nerfstudio_renderer source
-COPY src/ /nerfstudio_renderer_source/
+RUN sudo pip install rpyc
 
-# pip-install nerfstudio_renderer
-WORKDIR /nerfstudio_renderer_source
-RUN sudo pip install .
-WORKDIR /workspace
+WORKDIR /workspace/src
 
+# Force using the latest version of the source code for the ease of development
 # Entrypoint: RPyC Server
-ENTRYPOINT rpyc_classic --host 0.0.0.0 --port $SERVER_PORT
+ENTRYPOINT cp -r /workspace/src ~/src \
+           && cd ~/src \
+           && sudo pip install . \
+           && rpyc_classic --host 0.0.0.0 --port $SERVER_PORT
