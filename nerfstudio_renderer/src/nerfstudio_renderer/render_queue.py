@@ -3,106 +3,106 @@ import threading
 from nerfstudio_renderer.renderer import *
 
 class RendererCameraConfig:
-	"""
-	This class contains functions used to load
-	camera configurations for the NerfStudioRenderQueue to use.
+    """
+    This class contains functions used to load
+    camera configurations for the NerfStudioRenderQueue to use.
 
-	The configuration is a list of dicts.
-	The NerfStudioRenderQueue is then able to render differently
-	sized images with respect to each configuration, 
-	for performance considerations for example.
-	"""
+    The configuration is a list of dicts.
+    The NerfStudioRenderQueue is then able to render differently
+    sized images with respect to each configuration,
+    for performance considerations for example.
+    """
 
-	def __init__(self, cameras_config):
-		"""
-		Parameters
-		----------
-		cameras_config : list[dict]
-			A list of dicts that describes different camera configurations.
-			Each element is of the form { 
+    def __init__(self, cameras_config):
+        """
+        Parameters
+        ----------
+        cameras_config : list[dict]
+            A list of dicts that describes different camera configurations.
+            Each element is of the form {
                 'width': int,                       # The targeted rendered width
                 'height': int,                      # The targeted rendered height
                 'fov': float,                       # The targeted rendered height
                 'num_allowed_render_calls': int,    # The maximum number of render calls allowed for this configuration
                 'delay_before_render_call': int     # The delay before making a render call for this configuration
             }
-		"""
-		self.cameras = cameras_config
+        """
+        self.cameras = cameras_config
 
-	def default_config():
-		"""
-		Returns a default configuration, where there are 2 cameras,
-		one for accelerated and estimated rendering, and another for 
-		high-resolution display.
+    def default_config():
+        """
+        Returns a default configuration, where there are 2 cameras,
+        one for accelerated and estimated rendering, and another for
+        high-resolution display.
 
-		Returns
-		----------
-		RendererCameraConfig
-			A default config.
-		"""
-		return RendererCameraConfig([
-			{ 'width': 90,  'height': 42,  'fov': 72, 'num_allowed_render_calls': 5, 'delay_before_render_call': 0   },
+        Returns
+        ----------
+        RendererCameraConfig
+            A default config.
+        """
+        return RendererCameraConfig([
+            { 'width': 90,  'height': 42,  'fov': 72, 'num_allowed_render_calls': 5, 'delay_before_render_call': 0   },
             { 'width': 180, 'height': 84,  'fov': 72, 'num_allowed_render_calls': 3, 'delay_before_render_call': 0.05 },
-			{ 'width': 450, 'height': 210, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.10 }
-		])
+            { 'width': 450, 'height': 210, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.10 }
+        ])
 
-	def load_config(file_path=None):
-		"""
-		Returns a configuration defined by a json-formatted file.
-		
-		Parameters
-		----------
-		file_path : str, optional
-			The path to the config file.
+    def load_config(file_path=None):
+        """
+        Returns a configuration defined by a json-formatted file.
 
-		Returns
-		----------
-		RendererCameraConfig
-			A config specified by `file_path`, or a default one.
-		"""
-		if file_path is None:
-			return RendererCameraConfig.default_config()
-		with open(file_path, 'r') as f:
-			return RendererCameraConfig(json.load(f))
-		
-	def __len__(self):
-		"""
-		Returns
-		----------
-		int
-			The number of cameras in this configuration list.
-		"""
-		return len(self.cameras)
-	
-	def __getitem__(self, idx):
-		"""
-		Returns
-		----------
-		dict
-			The camera configuration indexed by `idx`.
-		"""
-		return self.cameras[idx]
+        Parameters
+        ----------
+        file_path : str, optional
+            The path to the config file.
+
+        Returns
+        ----------
+        RendererCameraConfig
+            A config specified by `file_path`, or a default one.
+        """
+        if file_path is None:
+            return RendererCameraConfig.default_config()
+        with open(file_path, 'r') as f:
+            return RendererCameraConfig(json.load(f))
+
+    def __len__(self):
+        """
+        Returns
+        ----------
+        int
+            The number of cameras in this configuration list.
+        """
+        return len(self.cameras)
+
+    def __getitem__(self, idx):
+        """
+        Returns
+        ----------
+        dict
+            The camera configuration indexed by `idx`.
+        """
+        return self.cameras[idx]
 
 class NerfStudioRenderQueue():
     """
-	The class encapsulates NerfStudioRenderer and provides
+    The class encapsulates NerfStudioRenderer and provides
     a mechanism that aims at minimizing rendering latency,
     via an interface that allows registration of rendering
-    requests. The render queue attempts to deliver 
-    rendering results of the latest request in time, so 
+    requests. The render queue attempts to deliver
+    rendering results of the latest request in time, so
     requests are not guaranteed to be served.
 
     Attributes
     ----------
-	camera_config : RendererCameraConfig
+    camera_config : RendererCameraConfig
         The different configurations of cameras (different qualities, etc.).
 
     renderer : NerfStudioRenderer
         The NerfStudioRenderer used to actually give rendered images.
-	"""
-    
-    def __init__(self, 
-                 model_config_path, 
+    """
+
+    def __init__(self,
+                 model_config_path,
                  checkpoint_path,
                  device,
                  camera_config_path=None,
@@ -115,15 +115,15 @@ class NerfStudioRenderQueue():
             The path to model configuration .yml file.
 
         camera_config_path : str, optional
-            The path to the config file. 
-			Uses `RendererCameraConfig.default_config()` when not assigned.
+            The path to the config file.
+            Uses `RendererCameraConfig.default_config()` when not assigned.
 
         pose_check_position_threshold : float, optional
-            Two cameras are treated as identical in position, 
+            Two cameras are treated as identical in position,
             if the sum of squared differences of their position vectors is under this threshold.
 
         pose_check_position_threshold : float, optional
-            Two cameras are treated as identical in rotation, 
+            Two cameras are treated as identical in rotation,
             if the sum of differences of their euler angle rotation vectors is under this threshold.
         """
         # Construct camera config and renderer
@@ -148,7 +148,7 @@ class NerfStudioRenderQueue():
         # The image lock for avoiding race conditions
         self._image_lock = threading.Lock()
         # The semaphores for preventing intense request bursts.
-        self._semaphores_by_quality = [threading.Semaphore(config['num_allowed_render_calls']) 
+        self._semaphores_by_quality = [threading.Semaphore(config['num_allowed_render_calls'])
                                        for config in self.camera_config]
         # The most recently completed render image
         self._recent_complete_image = None
@@ -198,7 +198,7 @@ class NerfStudioRenderQueue():
         renderer_call_args = (self._recent_accepted_request_id, position, rotation)
         thread = threading.Thread(target=self._progressive_renderer_call, args=renderer_call_args)
         thread.start()
-	
+
     # Processes a render request by serially serving render calls of different qualities.
     def _progressive_renderer_call(self, request_id, position, rotation):
         # For each render request, try to deliver the render output of the lowest quality fast.
@@ -210,7 +210,7 @@ class NerfStudioRenderQueue():
             # Apply a small delay before calls (and checks-before-calls), especially costly ones.
             # This prevents a costly call from occupying the computation resources (usually GPUs) too early,
             # as newer requests can invalidate this request with less costly calls.
-            # Intuitively, only when the camera stays at a place for very long (longer than the delay) 
+            # Intuitively, only when the camera stays at a place for very long (longer than the delay)
             # that we can confidently start costly, high-quality calls.
             # If after the delay, new requests come in, this older request will be invalidated in check-before-call.
             delay_before_render_call = config_entry['delay_before_render_call']
@@ -250,7 +250,7 @@ class NerfStudioRenderQueue():
                     return
                 else:
                     self._recent_complete_request_id = request_id
-            
+
             with self._image_lock:
                 self._recent_complete_image = image
 
