@@ -92,7 +92,7 @@ class NerfStudioRenderer():
             The height of the camera.
 
         fov : float
-            The field-of-view of the camera.
+            The vertical field-of-view of the camera.
 
         Returns
         ----------

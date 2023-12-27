@@ -70,7 +70,7 @@ def create_cameras(camera_to_world_matrix, width, height, fov):
         The height of the camera.
 
     fov : float
-        The field-of-view of the camera.
+        The vertical field-of-view of the camera.
 
     Returns
     ----------

@@ -1,5 +1,7 @@
+import json
 import threading
 import time
+from collections import deque
 
 from nerfstudio_renderer.renderer import *
 
@@ -22,19 +24,17 @@ class RendererCameraConfig:
         cameras_config : list[dict]
             A list of dicts that describes different camera configurations.
             Each element is of the form {
-                'width': int,                       # The targeted rendered width
-                'height': int,                      # The targeted rendered height
-                'fov': float,                       # The targeted rendered height
-                'num_allowed_render_calls': int,    # The maximum number of render calls allowed for this configuration
-                'delay_before_render_call': int     # The delay before making a render call for this configuration
+                'width': int,                       # The rendered image width (in pixels)
+                'height': int,                      # The rendered image height (in pixels)
+                'fov': float,                       # The vertical field-of-view of the camera
             }
         """
         self.cameras = cameras_config
 
     def default_config():
         """
-        Returns a default configuration, where there are 2 cameras,
-        one for accelerated and estimated rendering, and another for
+        Returns a default configuration, where there are 3 cameras,
+        two for accelerated and estimated rendering, and the other for
         high-resolution display.
 
         Returns
@@ -43,9 +43,9 @@ class RendererCameraConfig:
             A default config.
         """
         return RendererCameraConfig([
-            { 'width': 90,  'height': 42,  'fov': 72, 'num_allowed_render_calls': 5, 'delay_before_render_call': 0   },
-            { 'width': 180, 'height': 84,  'fov': 72, 'num_allowed_render_calls': 3, 'delay_before_render_call': 0.05 },
-            { 'width': 450, 'height': 210, 'fov': 72, 'num_allowed_render_calls': 2, 'delay_before_render_call': 0.10 }
+            { 'width': 90,  'height': 42,  'fov': 72 },
+            { 'width': 180, 'height': 84,  'fov': 72 },
+            { 'width': 450, 'height': 210, 'fov': 72 },
         ])
 
     def load_config(file_path=None):
@@ -66,24 +66,6 @@ class RendererCameraConfig:
             return RendererCameraConfig.default_config()
         with open(file_path, 'r') as f:
             return RendererCameraConfig(json.load(f))
-
-    def __len__(self):
-        """
-        Returns
-        ----------
-        int
-            The number of cameras in this configuration list.
-        """
-        return len(self.cameras)
-
-    def __getitem__(self, idx):
-        """
-        Returns
-        ----------
-        dict
-            The camera configuration indexed by `idx`.
-        """
-        return self.cameras[idx]
 
 class NerfStudioRenderQueue():
     """
@@ -107,6 +89,7 @@ class NerfStudioRenderQueue():
                  model_config_path,
                  checkpoint_path,
                  device,
+                 thread_count=3,
                  camera_config_path=None,
                  pose_check_position_threshold=0.00001,
                  pose_check_rotation_threshold=3):
@@ -137,23 +120,52 @@ class NerfStudioRenderQueue():
         self._pose_check_rotation_threshold = pose_check_rotation_threshold
 
         # Data maintained for optimization:
-        # The camera position of the most recently accepted request.
-        self._recent_camera_position = (-np.inf, -np.inf, -np.inf)
-        # The camera rotation of the most recently accepted request.
-        self._recent_camera_rotation = (-np.inf, -np.inf, -np.inf)
-        # The most recently completed request id
-        self._recent_complete_request_id = 0
-        # The most recently accepted request id
-        self._recent_accepted_request_id = -1
-        # The data lock for avoiding race conditions
-        self._data_lock = threading.Lock()
-        # The image lock for avoiding race conditions
-        self._image_lock = threading.Lock()
-        # The semaphores for preventing intense request bursts.
-        self._semaphores_by_quality = [threading.Semaphore(config['num_allowed_render_calls'])
-                                       for config in self.camera_config]
-        # The most recently completed render image
-        self._recent_complete_image = None
+        self._last_request_camera_position = (-np.inf, -np.inf, -np.inf)
+        """The camera position of the last accepted request."""
+        self._last_request_camera_rotation = (-np.inf, -np.inf, -np.inf)
+        """The camera rotation of the last accepted request."""
+
+        self._request_deque = deque(maxlen=thread_count)
+        """The queue/buffer of render requests. Since we want to drop
+        stale requests/responses, the max size of the deque is simply
+        set as the thread count. The deque acts like a request buffer
+        instead of a task queue, which drops older requests when full.
+        """
+        self._request_deque_pop_lock = threading.Lock()
+        """The lock for the request deque. Although deque is
+        thread-safe, we still need to lock it when popping the deque
+        while empty to create blocking behavior.
+        """
+
+        self._last_request_timestamp = time.time()
+        """The timestamp of the last accepted request."""
+        self._last_request_timestamp_lock = threading.Lock()
+        """The timestamp lock for the last request timestamp."""
+        self._last_response_timestamp = time.time()
+        """The timestamp of the last sent response."""
+        self._last_response_timestamp_lock = threading.Lock()
+        """The timestamp lock for the last response timestamp."""
+
+        self._image_response_buffer = None
+        """The latest rendered image buffer, which will be cleared
+        immediately after retrieval."""
+        self._image_response_buffer_lock = threading.Lock()
+        """The image lock for the image response buffer."""
+
+        for i in range(thread_count):
+            t = threading.Thread(target=self._render_task)
+            t.daemon = True
+            t.start()
+        # We choose to use threading here instead of multiprocessing
+        # due to lower overhead. We are aware of the GIL, but since
+        # the bottleneck should lie in the rendering process, which
+        # is implemented in C++ by PyTorch, the GIL should be released
+        # during PyTorch function calls.
+        # Ref: https://discuss.pytorch.org/t/can-pytorch-by-pass-python-gil/55498
+        # After going through some documents, we conclude that switching
+        # to multiprocessing may not be a good idea, since the overhead
+        # of inter-process communication may be high, and the
+        # implementation is not trivial.
 
     def get_rgb_image(self):
         """
@@ -166,9 +178,9 @@ class NerfStudioRenderQueue():
             If applicable, returns an np array of size (width, height, 3) and with values ranging from 0 to 1.
             Otherwise, returns None.
         """
-        with self._image_lock:
-            image = self._recent_complete_image
-            self._recent_complete_image = None
+        with self._image_response_buffer_lock:
+            image = self._image_response_buffer
+            self._image_response_buffer = None
             return image
 
     def update_camera(self, position, rotation):
@@ -184,80 +196,45 @@ class NerfStudioRenderQueue():
         rotation : list[float]
             A 3-element list specifying the camera rotation, in euler angles.
         """
-        # Optimization: Pose Check
-        # If this upcoming request has the (almost) same camera pose: position and rotation
-        # with the most recently accepted request, ignore it.
-        if self._is_pose_check_failed(position, rotation):
+        if self._is_input_similar(position, rotation):
               return
-        self._recent_camera_position = (position[0], position[1], position[2])
-        self._recent_camera_rotation = (rotation[0], rotation[1], rotation[2])
+        self._last_request_camera_position = position.copy()
+        self._last_request_camera_rotation = rotation.copy()
+        now = time.time()
+        with self._last_request_timestamp_lock:
+            self._last_request_timestamp = now
 
-        # Increment the most recently accepted request id by 1
-        with self._data_lock:
-            self._recent_accepted_request_id += 1
+        # Queue this render request, with request timestamp attached.
+        self._request_deque.append((position, rotation, now))
 
-        # Start a thread of this render request, with request id attached.
-        renderer_call_args = (self._recent_accepted_request_id, position, rotation)
-        thread = threading.Thread(target=self._progressive_renderer_call, args=renderer_call_args)
-        thread.start()
+    def _render_task(self):
+        while True:
+            with self._request_deque_pop_lock:
+                if len(self._request_deque) == 0:
+                    time.sleep(0.05)
+                    continue
+                task = self._request_deque.pop()
+            position, rotation, timestamp = task
+            # For each render request, render lower quality images first, and then higher quality ones.
+            # This rendering request and response may be dropped, as newer requests/responses invalidate older ones.
+            for camera in self.camera_config.cameras:
+                # A request can be invalidated if there are newer requests.
+                with self._last_request_timestamp_lock:
+                    if timestamp - self._last_request_timestamp < 0:
+                        continue
+                # Render the image
+                image = self.renderer.render_at(position, rotation, camera['width'], camera['height'], camera['fov'])
+                # A response must be dropped if there are newer responses.
+                with self._last_response_timestamp_lock:
+                    if timestamp - self._last_response_timestamp < 0:
+                        print("Dropped a response.")
+                        continue
+                    self._last_response_timestamp = timestamp
+                with self._image_response_buffer_lock:
+                    self._image_response_buffer = image
 
-    # Processes a render request by serially serving render calls of different qualities.
-    def _progressive_renderer_call(self, request_id, position, rotation):
-        # For each render request, try to deliver the render output of the lowest quality fast.
-        # When rendering of lower qualities are done, serially move to higher ones.
-        for quality_index, config_entry in enumerate(self.camera_config):
-            # For each config of different quality: obtain the rendered image, and then record the results if needed.
-
-            # Optimization: Delay Before Call
-            # Apply a small delay before calls (and checks-before-calls), especially costly ones.
-            # This prevents a costly call from occupying the computation resources (usually GPUs) too early,
-            # as newer requests can invalidate this request with less costly calls.
-            # Intuitively, only when the camera stays at a place for very long (longer than the delay)
-            # that we can confidently start costly, high-quality calls.
-            # If after the delay, new requests come in, this older request will be invalidated in check-before-call.
-            delay_before_render_call = config_entry['delay_before_render_call']
-            if delay_before_render_call > 0:
-                time.sleep(delay_before_render_call)
-
-            # Optimization: Semaphores By Quality
-            # If an intense request burst happens, a series of costly calls can clog up computation resources really fast.
-            # The thread of a request can be blocked, if too many requests are already running calls of the same quality index.
-            # Say a bunch of high-quality, costly calls are blocked, because some have made costly calls but have not obtained results.
-            # When a vacancy is available, these blocked calls may proceed, but most of them will be invalidated by check-before-call.
-            # Among the many blocked costly calls, only the one from the newest request may proceed.
-            # Intuitively, we try to select newer requests to make costly calls with this optimization.
-            self._semaphores_by_quality[quality_index].acquire()
-
-            # Optimization: Check Before Call
-            # A request can be invalidated before a call of it is made,
-            # if there are newer requests accepted.
-            with self._data_lock:
-                if request_id < self._recent_accepted_request_id:
-                    self._semaphores_by_quality[quality_index].release()
-                    return
-
-            # Render the image
-            image = self.renderer.render_at(position, rotation, config_entry['width'], config_entry['height'], config_entry['fov'])
-
-            # Release the semaphore acquired from semaphores-by-quality after the render call is done.
-            self._semaphores_by_quality[quality_index].release()
-
-            # Optimization: Check After Call
-            # When a call is finished, its results may no longer be needed (i.e., obsolete)
-            # Maintain the most recent request id that completed (some of) its render calls.
-            # If a newer request has finished a call before this request, discard the results.
-            # Using completed request id (instead of accepted request id) prevents the situation where no results are accepted.
-            with self._data_lock:
-                if request_id < self._recent_complete_request_id:
-                    return
-                else:
-                    self._recent_complete_request_id = request_id
-
-            with self._image_lock:
-                self._recent_complete_image = image
-
-    # Checks if camera position is similar to what was recorded.
-    def _is_pose_check_failed(self, position, rotation):
-          position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._recent_camera_position)])
-          rotation_diff = sum([(a - b) for a, b in zip(rotation, self._recent_camera_rotation)])
+    # Checks if camera pose is similar to what was recorded.
+    def _is_input_similar(self, position, rotation):
+          position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._last_request_camera_position)])
+          rotation_diff = sum([(a - b) for a, b in zip(rotation, self._last_request_camera_rotation)])
           return (position_diff < self._pose_check_position_threshold) and (rotation_diff < self._pose_check_rotation_threshold)
