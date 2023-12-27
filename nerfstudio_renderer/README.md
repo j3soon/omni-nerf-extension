@@ -28,12 +28,16 @@ Run the PyGame test window with the following commands:
 xhost +local:docker
 docker compose up
 # in new shell
-docker exec -it pygame-window bash
-# in container
-./run.sh
+docker exec -it pygame-window /workspace/run.sh
 # the initial execution might result in a delay due to the download of the pre-trained torch model.
 # please re-run the script if the script times out.
 ```
+
+> There seems to be an issue in `nerfstudio-renderer` that uses old code
+> upon restart. I'm not aware of a reliable fix for this issue yet.
+> However, running `docker compose down && docker rm $(docker ps -aq)`
+> seems to fix the issue. Please keep this in mind when modifying the
+> renderer code.
 
 ## Running Inside Docker
 
