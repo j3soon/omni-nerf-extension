@@ -1,12 +1,8 @@
-import json
 import torch
-import pathlib
 import yaml
-from nerfstudio.utils.eval_utils import eval_setup
-from nerfstudio.utils import colormaps
-from pathlib import Path
-from nerfstudio_renderer.utils import *
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio_renderer.utils import *
+
 
 class NerfStudioRenderer():
     """

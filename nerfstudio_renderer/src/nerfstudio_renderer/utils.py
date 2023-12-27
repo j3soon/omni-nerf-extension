@@ -3,6 +3,7 @@ import torch
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
+
 def euler_to_rotation_matrix(rotation_rad):
     """
     Constructs a 3x3 rotation matrix given the euler rotation vector in radians.
