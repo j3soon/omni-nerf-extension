@@ -2,38 +2,8 @@ import numpy as np
 import torch
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
+from scipy.spatial.transform import Rotation as R
 
-
-def euler_to_rotation_matrix(rotation_rad):
-    """
-    Constructs a 3x3 rotation matrix given the euler rotation vector in radians.
-
-    Parameters
-    ----------
-    rotation_rad : np.array
-        A 3-element np.array representing the rotation radians in x, y, and z axis.
-
-    Returns
-    ----------
-    np.array
-        A 3x3 rotation matrix.
-    """
-    roll, pitch, yaw = rotation_rad
-
-    cos_r = np.cos(roll)
-    sin_r = np.sin(roll)
-    cos_p = np.cos(pitch)
-    sin_p = np.sin(pitch)
-    cos_y = np.cos(yaw)
-    sin_y = np.sin(yaw)
-
-    rotation_matrix = np.array([
-        [ cos_p * cos_y, cos_y * sin_p * sin_r - cos_r * sin_y,  cos_r * cos_y * sin_p + sin_r * sin_y],
-        [ cos_p * sin_y, cos_r * cos_y + sin_p * sin_r * sin_y, -cos_y * sin_r + cos_r * sin_p * sin_y],
-        [-sin_p,         cos_p * sin_r,                          cos_p * cos_r]
-    ])
-
-    return rotation_matrix
 
 def camera_to_world_matrix(position, rotation):
     """
@@ -59,7 +29,7 @@ def camera_to_world_matrix(position, rotation):
     # Obtain transformed rotations
     rotation_rad = np.array(rotation) * np.pi / 180
     v_c = np.array([0, 0, 1])
-    R_uc = euler_to_rotation_matrix(rotation_rad)
+    R_uc = R.from_euler('xyz', rotation_rad).as_matrix()
     R_mu = np.array([[0, 0, 1,], [-1, 0, 0], [0, 1, 0]])
     R_mc = np.matmul(R_mu, R_uc)
     v_m = np.matmul(R_mc, v_c)
@@ -74,7 +44,7 @@ def camera_to_world_matrix(position, rotation):
     roll_angle = np.arctan2(-v1[2], v1[0])
 
     c2w_rotations = np.array([roll_angle, pitch_angle, yaw_angle])
-    c2w_rotations_rad = euler_to_rotation_matrix(c2w_rotations)
+    c2w_rotations_rad = R.from_euler('xyz', c2w_rotations).as_matrix()
 
     # Compose c2w matrix
     camera_to_world_matrix = np.eye(4)
