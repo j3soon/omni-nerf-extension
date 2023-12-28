@@ -14,18 +14,31 @@ def parse_args():
     parser.add_argument("--model_config_path", type=str, required=True)
     parser.add_argument("--model_checkpoint_path", type=str, required=True)
     parser.add_argument("--device", type=str, choices=['cpu', 'cuda'], default='cuda')
+    parser.add_argument("--rpyc", type=bool, default=False)
     args = parser.parse_args()
     return args
 
 def main(args):
-    # Remote: Make Connection & Import
-    conn = rpyc.classic.connect(args.host, args.port)
-    conn.execute('from nerfstudio_renderer import NerfStudioRenderQueue')
-    conn.execute('from pathlib import Path')
-    conn.execute('import torch')
+    if not args.rpyc:
+        # Remote: Make Connection & Import
+        conn = rpyc.classic.connect(args.host, args.port)
+        conn.execute('from nerfstudio_renderer import NerfStudioRenderQueue')
+        conn.execute('from pathlib import Path')
+        conn.execute('import torch')
+    else:
+        from nerfstudio_renderer import NerfStudioRenderQueue
+        from pathlib import Path
+        import torch
 
-    # Create a Remote NerfStudioRenderQueue
-    conn.execute(f'rq = NerfStudioRenderQueue(model_config_path=Path("{args.model_config_path}"), checkpoint_path="{args.model_checkpoint_path}", device=torch.device("{args.device}"))')
+    if not args.rpyc:
+        # Create a Remote NerfStudioRenderQueue
+        conn.execute(f'rq = NerfStudioRenderQueue(model_config_path=Path("{args.model_config_path}"), checkpoint_path="{args.model_checkpoint_path}", device=torch.device("{args.device}"))')
+    else:
+        rq = NerfStudioRenderQueue(
+            model_config_path=Path(args.model_config_path),
+            checkpoint_path=args.model_checkpoint_path,
+            device=torch.device(args.device),
+        )
 
     # Initialize Pygame
     pygame.init()
@@ -55,7 +68,10 @@ def main(args):
                 running = False
 
         # Retrieve image
-        image = conn.eval('rq.get_rgb_image()')
+        if not args.rpyc:
+            image = conn.eval('rq.get_rgb_image()')
+        else:
+            image = rq.get_rgb_image()
         if image is not None:
             image = np.array(image)
             image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -87,13 +103,17 @@ def main(args):
         camera_position[0] = (np.sin(camera_curve_time) + 1) / 2
 
         # Update Camera
-        conn.execute(f'rq.update_camera({camera_position}, {camera_rotation})')
+        if not args.rpyc:
+            conn.execute(f'rq.update_camera({camera_position}, {camera_rotation})')
+        else:
+            rq.update_camera(camera_position, camera_rotation)
 
         if int(time.time()) % 3 == 0:
             camera_curve_time += 1.0 / 30.0
 
-    # Delete remote render queue
-    conn.execute('del rq')
+    if not args.rpyc:
+        # Delete remote render queue
+        conn.execute('del rq')
 
     # Quit Pygame
     pygame.quit()

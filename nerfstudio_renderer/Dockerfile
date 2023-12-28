@@ -11,5 +11,5 @@ WORKDIR /workspace/src
 # Entrypoint: RPyC Server
 ENTRYPOINT cp -r /workspace/src ~/src \
            && cd ~/src \
-           && sudo pip install -e . \
+           && sudo pip install . \
            && rpyc_classic --host 0.0.0.0 --port $SERVER_PORT

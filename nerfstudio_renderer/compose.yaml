@@ -12,9 +12,13 @@ services:
     container_name: nerfstudio-renderer
     ports:
       - "7007:7007"
+    environment:
+      - DISPLAY=$DISPLAY
     volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
       - ./data/outputs:/workspace/outputs:ro
       - ./src:/workspace/src:ro
+      - ./tests:/workspace/tests:ro
       - cache:/home/user/.cache
     shm_size: '6gb'
     deploy:

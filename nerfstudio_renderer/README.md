@@ -36,8 +36,23 @@ docker exec -it pygame-window /workspace/run.sh
 > There seems to be an issue in `nerfstudio-renderer` that uses old code
 > upon restart. I'm not aware of a reliable fix for this issue yet.
 > However, running `docker compose down && docker rm $(docker ps -aq)`
-> seems to fix the issue. Please keep this in mind when modifying the
-> renderer code.
+> seems to fix the issue (`docker compose down` isn't enough). I believe
+it is due to the `pip install` in docker entrypoint. Please keep this in
+> mind when modifying the renderer code.
+
+For development purposes, you can run the following command to run the
+PyGame test window directly in the `nerfstudio-renderer` container:
+
+```sh
+xhost +local:docker
+docker compose up
+# in new shell
+docker exec -it nerfstudio-renderer /workspace/tests/run_local.sh
+```
+
+The `run_local.sh` script will re-copy and re-install the package
+before launching the PyGame window, so this method will not encounter
+the old code issue mentioned above.
 
 ## Running Inside Docker
 
