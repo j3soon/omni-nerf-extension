@@ -197,7 +197,7 @@ class NerfStudioRenderQueue():
             A 3-element list specifying the camera rotation, in euler angles.
         """
         if self._is_input_similar(position, rotation):
-              return
+            return
         self._last_request_camera_position = position.copy()
         self._last_request_camera_rotation = rotation.copy()
         now = time.time()
@@ -223,11 +223,11 @@ class NerfStudioRenderQueue():
                     if timestamp - self._last_request_timestamp < 0:
                         continue
                 # Render the image
+                # TODO: Allow early return if the request is invalidated.
                 image = self.renderer.render_at(position, rotation, camera['width'], camera['height'], camera['fov'])
                 # A response must be dropped if there are newer responses.
                 with self._last_response_timestamp_lock:
                     if timestamp - self._last_response_timestamp < 0:
-                        print("Dropped a response.")
                         continue
                     self._last_response_timestamp = timestamp
                 with self._image_response_buffer_lock:
@@ -235,6 +235,8 @@ class NerfStudioRenderQueue():
 
     # Checks if camera pose is similar to what was recorded.
     def _is_input_similar(self, position, rotation):
-          position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._last_request_camera_position)])
-          rotation_diff = sum([(a - b) for a, b in zip(rotation, self._last_request_camera_rotation)])
-          return (position_diff < self._pose_check_position_threshold) and (rotation_diff < self._pose_check_rotation_threshold)
+        # TODO: Change to more geometrically meaningful metric, such as
+        # Euclidean distance in 3D space, and angular distance in SO(3).
+        position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._last_request_camera_position)])
+        rotation_diff = sum([(a - b) for a, b in zip(rotation, self._last_request_camera_rotation)])
+        return (position_diff < self._pose_check_position_threshold) and (rotation_diff < self._pose_check_rotation_threshold)

@@ -50,7 +50,7 @@ class NerfStudioRenderer():
         if config.pipeline.model.use_average_appearance_embedding:
             print("WARNING: Forcing zero appearance embedding, although model config specifies to use average appearance embedding.")
         config.pipeline.model.use_average_appearance_embedding = False
-        # TODO: Support configuring `eval_num_rays_per_chunk``
+        # TODO: Support configuring `eval_num_rays_per_chunk`
         # Ref: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/utils/eval_utils.py#L92-L93
 
         # 1.1. Call to `VanillaPipelineConfig.setup`, which inherits `InstantiateConfig.setup`
@@ -202,9 +202,8 @@ class NerfStudioRenderer():
 
         # Inference
         with torch.no_grad():
-            # TODO: Potentially use `eval_num_rays_per_chunk` to improve speed?
-            # For `get_outputs_for_camera_ray_bundle`,
-            # See: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/models/base_model.py#L165
+            # TODO: Allow early return between the calculation of ray bundles if the request is invalidated.
+            # See: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/models/base_model.py#L175
             outputs = self.model.get_outputs_for_camera_ray_bundle(ray_bundle)['rgb']
 
         # Return results
