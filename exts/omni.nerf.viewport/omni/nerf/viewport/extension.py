@@ -1,6 +1,8 @@
+import numpy as np
 import omni.ext
 import omni.ui as ui
 import omni.usd
+from omni.kit.viewport.utility import get_active_viewport
 from pxr import Usd, UsdGeom
 
 
@@ -28,6 +30,9 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         self.stage_event_delegate = self.events.create_subscription_to_pop(
             self._on_stage_event, name="Object Info Selection Update"
         )
+        # TODO: Listen to update events
+        # - omni.kit.app.get_app().get_update_event_stream().add_callback(self._on_update)
+        # - https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
         # Build UI
         self.build_ui()
 
@@ -41,6 +46,51 @@ class OmniNerfViewportExtension(omni.ext.IExt):
 
         with self.ui_window.frame:
             with ui.VStack(height=0):
+                # Camera Viewport
+                # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.kit.viewport.docs/latest/overview.html#simplest-example
+                # Don't create a new viewport widget as below, since the viewport widget will often flicker.
+                # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/release-notes/known-limits.html
+                # ```
+                # from omni.kit.widget.viewport import ViewportWidget
+                # self.ui_viewport_widget = ViewportWidget(
+                #     resolution = (640, 480),
+                #     width = 640,
+                #     height = 480,
+                # )
+                # self.viewport_api = self.ui_viewport_widget.viewport_api
+                # ````
+                # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/python-snippets/viewport/change-viewport-active-camera.html
+                self.viewport_api = get_active_viewport()
+                # We chose to use Viewport instead of Isaac Sim's Camera Sensor to avoid dependency on Isaac Sim.
+                # We want the extension to work with any Omniverse app, not just Isaac Sim.
+                # Ref: https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html
+
+                # NeRF Viewport
+                # More examples on using ByteImageProvider can be found by installing Isaac Sim
+                # and searching for `set_bytes_data` under `~/.local/share/ov/pkg/isaac_sim-2023.1.0`.
+                # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ByteImageProvider.html
+                # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ImageWithProvider.html
+                self.ui_nerf_provider = ui.ByteImageProvider()
+                # TODO: Potentially optimize with `set_bytes_data_from_gpu`
+                w, h = 256, 256
+                self.ui_nerf_img = ui.ImageWithProvider(
+                    self.ui_nerf_provider,
+                    width=w,
+                    height=h,
+                )
+                # TODO: Larger image size?
+                # TODO: Get viewport data and show it
+                # Ref: https://forums.developer.nvidia.com/t/how-can-i-grab-the-viewport-or-the-camera-rendering-in-a-python-script/238365/2
+                # TODO: Get viewport matrices and show it
+                print("Viewport Projection", self.viewport_api.projection)
+                print("Viewport Transform", self.viewport_api.transform)
+
+                rgba = np.ones((w, h, 4), dtype=np.uint8) * 128
+                rgba[:,:,3] = 255
+                self.ui_nerf_provider.set_bytes_data(rgba.flatten().tolist(), (w, h))
+                # TODO: Update as the viewport moves
+                # Currently, the ByteImageProvider is only updated upon building the UI,
+                # which means the image is not updated when the viewport moves.
                 self.ui_lbl = ui.Label("(To Be Updated)")
         self.update_ui()
 
