@@ -44,6 +44,10 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         )
         # TODO: Consider subscribing to update events
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
+        # Allocate memory
+        self.rgba_w, self.rgba_h = 256, 256
+        self.rgba = np.ones((self.rgba_w, self.rgba_h, 4), dtype=np.uint8) * 128
+        self.rgba[:,:,3] = 255
         # Build UI
         self.build_ui()
 
@@ -83,11 +87,10 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ImageWithProvider.html
                 self.ui_nerf_provider = ui.ByteImageProvider()
                 # TODO: Potentially optimize with `set_bytes_data_from_gpu`
-                w, h = 256, 256
                 self.ui_nerf_img = ui.ImageWithProvider(
                     self.ui_nerf_provider,
-                    width=w,
-                    height=h,
+                    width=self.rgba_w,
+                    height=self.rgba_h,
                 )
                 # TODO: Larger image size?
                 # TODO: Get viewport data and show it
@@ -95,13 +98,6 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # TODO: Get viewport matrices and show it
                 print("Viewport Projection", self.viewport_api.projection)
                 print("Viewport Transform", self.viewport_api.transform)
-
-                rgba = np.ones((w, h, 4), dtype=np.uint8) * 128
-                rgba[:,:,3] = 255
-                self.ui_nerf_provider.set_bytes_data(rgba.flatten().tolist(), (w, h))
-                # TODO: Update as the viewport moves
-                # Currently, the ByteImageProvider is only updated upon building the UI,
-                # which means the image is not updated when the viewport moves.
                 self.ui_lbl = ui.Label("(To Be Updated)")
         self.update_ui()
 
@@ -140,8 +136,10 @@ class OmniNerfViewportExtension(omni.ext.IExt):
 
     def _on_rendering_event(self, event):
         """Called by rendering_event_stream."""
-        print("[omni.nerf.viewport] on_rendering_event", omni.usd.StageRenderingEventType(event.type))
         # No need to check event type, since there is only one event type: `NEW_FRAME`.
+        # TODO: Below color change is for testing purposes.
+        self.rgba[:,:,:3] = (self.rgba[:,:,:3] + np.ones((self.rgba_w, self.rgba_h, 3), dtype=np.uint8)) % 256
+        self.ui_nerf_provider.set_bytes_data(self.rgba.flatten().tolist(), (self.rgba_w, self.rgba_h))
 
     def on_shutdown(self):
         print("[omni.nerf.viewport] omni nerf viewport shutdown")
