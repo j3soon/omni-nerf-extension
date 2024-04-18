@@ -24,15 +24,26 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         self.selected_camera_path = None
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/stage/get-current-stage.html
         self.usd_context = omni.usd.get_context()
+        # Subscribe to event streams
+        # Ref: https://docs.omniverse.nvidia.com/kit/docs/kit-manual/latest/guide/event_streams.html
         # Listen to selection changes
         # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/object_info.html#step-3-4-use-usdcontext-to-listen-for-selection-changes
-        self.events = self.usd_context.get_stage_event_stream()
-        self.stage_event_delegate = self.events.create_subscription_to_pop(
+        self.stage_event_stream = self.usd_context.get_stage_event_stream()
+        self.stage_event_delegate = self.stage_event_stream.create_subscription_to_pop(
             self._on_stage_event, name="Object Info Selection Update"
         )
-        # TODO: Listen to update events
-        # - omni.kit.app.get_app().get_update_event_stream().add_callback(self._on_update)
-        # - https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
+        # TODO: Subscribe to only certain event types
+        # Ref: https://docs.omniverse.nvidia.com/kit/docs/kit-manual/104.0/carb.events/carb.events.IEventStream.html#carb.events.IEventStream.create_subscription_to_pop_by_type
+        # Listen to rendering events. Only triggered when the viewport is rendering is updated.
+        # Will not be triggered when no viewport is visible on the screen.
+        # Examples on using `get_rendering_event_stream` can be found by installing Isaac Sim
+        # and searching for `get_rendering_event_stream` under `~/.local/share/ov/pkg/isaac_sim-2023.1.1`.
+        self.rendering_event_stream = self.usd_context.get_rendering_event_stream()
+        self.rendering_event_delegate = self.rendering_event_stream.create_subscription_to_pop(
+            self._on_rendering_event, name="NeRF Viewport Update"
+        )
+        # TODO: Consider subscribing to update events
+        # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
         # Build UI
         self.build_ui()
 
@@ -66,8 +77,8 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # Ref: https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html
 
                 # NeRF Viewport
-                # More examples on using ByteImageProvider can be found by installing Isaac Sim
-                # and searching for `set_bytes_data` under `~/.local/share/ov/pkg/isaac_sim-2023.1.0`.
+                # Examples on using ByteImageProvider can be found by installing Isaac Sim
+                # and searching for `set_bytes_data` under `~/.local/share/ov/pkg/isaac_sim-2023.1.1`.
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ByteImageProvider.html
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ImageWithProvider.html
                 self.ui_nerf_provider = ui.ByteImageProvider()
@@ -127,10 +138,15 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         self.selected_camera_path = selected_camera_path
         self.update_ui()
 
+    def _on_rendering_event(self, event):
+        """Called by rendering_event_stream."""
+        print("[omni.nerf.viewport] on_rendering_event", omni.usd.StageRenderingEventType(event.type))
+        # No need to check event type, since there is only one event type: `NEW_FRAME`.
+
     def on_shutdown(self):
         print("[omni.nerf.viewport] omni nerf viewport shutdown")
 
     def destroy(self):
         # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/object_info.html#step-3-4-use-usdcontext-to-listen-for-selection-changes
-        self.events = None
+        self.stage_event_stream = None
         self.stage_event_delegate.unsubscribe()
