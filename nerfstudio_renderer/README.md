@@ -90,6 +90,8 @@ image = conn.eval('rq.get_rgb_image()')
 conn.execute('del rq')
 ```
 
+Please note that the use of rpyc does not perfectly decouple the client and server. The client must be using the same Python version as the server, otherwise, there will be compatibility issues.
+
 ## Notes
 
 - `NerfStudioRenderQueue.update_camera` can be called whenever needed. The renderer will progressively render better images serially. Each update to the camera will result in an asynchronous rendering series.

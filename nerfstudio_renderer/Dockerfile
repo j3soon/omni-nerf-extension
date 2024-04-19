@@ -12,4 +12,5 @@ WORKDIR /workspace/src
 ENTRYPOINT cp -r /workspace/src ~/src \
            && cd ~/src \
            && sudo pip install . \
+           && python3 --version \
            && rpyc_classic --host 0.0.0.0 --port $SERVER_PORT

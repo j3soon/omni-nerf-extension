@@ -6,6 +6,7 @@ sudo pip install -r /workspace/tests/requirements.txt
 sudo rm -rf ~/src
 cp -r /workspace/src ~/src
 sudo pip install ~/src
+python3 --version
 python3 /workspace/tests/pygame_test.py \
     --model_config_path=/workspace/outputs/poster/nerfacto/DATE_TIME/config.yml \
     --model_checkpoint_path=/workspace/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt \
