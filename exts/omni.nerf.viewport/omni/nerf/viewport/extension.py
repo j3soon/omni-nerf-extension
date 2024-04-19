@@ -1,7 +1,11 @@
+import platform
+
+import cv2
 import numpy as np
 import omni.ext
 import omni.ui as ui
 import omni.usd
+import rpyc
 from omni.kit.viewport.utility import get_active_viewport
 from pxr import Usd, UsdGeom
 
@@ -16,10 +20,17 @@ def some_public_function(x: int):
 # instantiated when extension gets enabled and `on_startup(ext_id)` will be called. Later when extension gets disabled
 # on_shutdown() is called.
 class OmniNerfViewportExtension(omni.ext.IExt):
+
+    def __init__(self):
+        super().__init__()
+        self.is_python_supported: bool = platform.python_version().startswith("3.10")
+        """The Python version must match the backend version for RPyC to work."""
+
     # ext_id is current extension id. It can be used with extension manager to query additional information, like where
     # this extension is located on filesystem.
     def on_startup(self, ext_id):
-        # To see the Python print output, open the `Script Editor`.
+        # To see the Python print output in Omniverse Code, open the `Script Editor`.
+        # In Isaac Sim, see the startup console instead.
         print("[omni.nerf.viewport] omni nerf viewport startup")
         self.selected_camera_path = None
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/stage/get-current-stage.html
@@ -45,11 +56,28 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # TODO: Consider subscribing to update events
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
         # Allocate memory
-        self.rgba_w, self.rgba_h = 256, 256
-        self.rgba = np.ones((self.rgba_w, self.rgba_h, 4), dtype=np.uint8) * 128
+        self.rgba_w, self.rgba_h = 640, 480
+        self.rgba = np.ones((self.rgba_h, self.rgba_w, 4), dtype=np.uint8) * 128
+        """RGBA image buffer. The shape is (H, W, 4), following the NumPy convention."""
         self.rgba[:,:,3] = 255
+        # Init RPyC connection
+        if self.is_python_supported:
+            self.init_rpyc()
         # Build UI
         self.build_ui()
+
+    def init_rpyc(self):
+        # TODO: Make the following configurable
+        host = 'localhost'
+        port = 7007
+        model_config_path = '/workspace/outputs/poster/nerfacto/DATE_TIME/config.yml'
+        model_checkpoint_path = '/workspace/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt'
+        device = 'cuda'
+        self.rpyc_conn = rpyc.classic.connect(host, port)
+        self.rpyc_conn.execute('from nerfstudio_renderer import NerfStudioRenderQueue')
+        self.rpyc_conn.execute('from pathlib import Path')
+        self.rpyc_conn.execute('import torch')
+        self.rpyc_conn.execute(f'rq = NerfStudioRenderQueue(model_config_path=Path("{model_config_path}"), checkpoint_path="{model_checkpoint_path}", device=torch.device("{device}"))')
 
     def build_ui(self):
         """Build the UI. Should be called upon startup."""
@@ -57,10 +85,13 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # Ref: https://youtu.be/j1Pwi1KRkhk
         # Ref: https://github.com/NVIDIA-Omniverse
         # Ref: https://youtu.be/dNLFpVhBrGs
-        self.ui_window = ui.Window("NeRF Viewport")
+        self.ui_window = ui.Window("NeRF Viewport", width=self.rgba_w, height=self.rgba_h)
 
         with self.ui_window.frame:
-            with ui.VStack(height=0):
+            with ui.VStack():
+                self.ui_lbl = ui.Label("(To Be Updated)")
+                state = "supported" if platform.python_version().startswith("3.10") else "NOT supported"
+                self.ui_lbl.text = f"Python {platform.python_version()} is {state}"
                 # Camera Viewport
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.kit.viewport.docs/latest/overview.html#simplest-example
                 # Don't create a new viewport widget as below, since the viewport widget will often flicker.
@@ -89,8 +120,8 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # TODO: Potentially optimize with `set_bytes_data_from_gpu`
                 self.ui_nerf_img = ui.ImageWithProvider(
                     self.ui_nerf_provider,
-                    width=self.rgba_w,
-                    height=self.rgba_h,
+                    width=ui.Percent(100),
+                    height=ui.Percent(100),
                 )
                 # TODO: Larger image size?
                 # TODO: Get viewport data and show it
@@ -98,13 +129,12 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # TODO: Get viewport matrices and show it
                 print("Viewport Projection", self.viewport_api.projection)
                 print("Viewport Transform", self.viewport_api.transform)
-                self.ui_lbl = ui.Label("(To Be Updated)")
         self.update_ui()
 
     def update_ui(self):
         print("[omni.nerf.viewport] Updating UI")
         print(f"[omni.nerf.viewport] Selected Camera: {self.selected_camera_path}")
-        self.ui_lbl.text = f"Selected Camera: {self.selected_camera_path}"
+        # self.ui_lbl.text = f"Selected Camera: {self.selected_camera_path}"
         # Ref: https://forums.developer.nvidia.com/t/refresh-window-ui/221200
         self.ui_window.frame.rebuild()
 
@@ -137,12 +167,25 @@ class OmniNerfViewportExtension(omni.ext.IExt):
     def _on_rendering_event(self, event):
         """Called by rendering_event_stream."""
         # No need to check event type, since there is only one event type: `NEW_FRAME`.
-        # TODO: Below color change is for testing purposes.
-        self.rgba[:,:,:3] = (self.rgba[:,:,:3] + np.ones((self.rgba_w, self.rgba_h, 3), dtype=np.uint8)) % 256
+        if self.is_python_supported:
+            # TODO: Use viewport transform.
+            camera_position = [0, 0, 0]
+            camera_rotation = [0, 0, 0]
+            self.rpyc_conn.execute(f'rq.update_camera({camera_position}, {camera_rotation})')
+            image = self.rpyc_conn.eval('rq.get_rgb_image()')
+            if image is not None:
+                image = np.array(image) # received with shape (H*, W*, 3)
+                image = cv2.resize(image, (self.rgba_w, self.rgba_h), interpolation=cv2.INTER_LINEAR) # resize to (H, W, 3)
+                self.rgba[:,:,:3] = image * 255
+        else:
+            # If python version is not supported, render the dummy image.
+            self.rgba[:,:,:3] = (self.rgba[:,:,:3] + np.ones((self.rgba_h, self.rgba_w, 3), dtype=np.uint8)) % 256
         self.ui_nerf_provider.set_bytes_data(self.rgba.flatten().tolist(), (self.rgba_w, self.rgba_h))
 
     def on_shutdown(self):
         print("[omni.nerf.viewport] omni nerf viewport shutdown")
+        if self.is_python_supported:
+            self.rpyc_conn.execute('del rq')
 
     def destroy(self):
         # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/object_info.html#step-3-4-use-usdcontext-to-listen-for-selection-changes
