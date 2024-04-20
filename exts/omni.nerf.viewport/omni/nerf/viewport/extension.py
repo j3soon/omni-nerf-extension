@@ -7,7 +7,7 @@ import omni.ui as ui
 import omni.usd
 import rpyc
 from omni.kit.viewport.utility import get_active_viewport
-from pxr import Usd, UsdGeom
+from pxr import Gf, Usd, UsdGeom
 
 
 # Functions and vars are available to other extension as usual in python: `example.python_ext.some_public_function(x)`
@@ -25,6 +25,8 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         super().__init__()
         self.is_python_supported: bool = platform.python_version().startswith("3.10")
         """The Python version must match the backend version for RPyC to work."""
+        self.camera_position: Gf.Vec3d = None
+        self.camera_rotation: Gf.Vec3d = None
 
     # ext_id is current extension id. It can be used with extension manager to query additional information, like where
     # this extension is located on filesystem.
@@ -69,7 +71,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
     def init_rpyc(self):
         # TODO: Make the following configurable
         host = 'localhost'
-        port = 7007
+        port = 10001
         model_config_path = '/workspace/outputs/poster/nerfacto/DATE_TIME/config.yml'
         model_checkpoint_path = '/workspace/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt'
         device = 'cuda'
@@ -92,6 +94,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 self.ui_lbl = ui.Label("(To Be Updated)")
                 state = "supported" if platform.python_version().startswith("3.10") else "NOT supported"
                 self.ui_lbl.text = f"Python {platform.python_version()} is {state}"
+                self.ui_btn = ui.Button("Reset Camera", width=20, clicked_fn=self.on_btn_click)
                 # Camera Viewport
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.kit.viewport.docs/latest/overview.html#simplest-example
                 # Don't create a new viewport widget as below, since the viewport widget will often flicker.
@@ -106,10 +109,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # self.viewport_api = self.ui_viewport_widget.viewport_api
                 # ````
                 # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/python-snippets/viewport/change-viewport-active-camera.html
-                self.viewport_api = get_active_viewport()
-                # We chose to use Viewport instead of Isaac Sim's Camera Sensor to avoid dependency on Isaac Sim.
-                # We want the extension to work with any Omniverse app, not just Isaac Sim.
-                # Ref: https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html
+                # Instead, the viewport is obtained from the active viewport in new renderings.
 
                 # NeRF Viewport
                 # Examples on using ByteImageProvider can be found by installing Isaac Sim
@@ -124,11 +124,6 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                     height=ui.Percent(100),
                 )
                 # TODO: Larger image size?
-                # TODO: Get viewport data and show it
-                # Ref: https://forums.developer.nvidia.com/t/how-can-i-grab-the-viewport-or-the-camera-rendering-in-a-python-script/238365/2
-                # TODO: Get viewport matrices and show it
-                print("Viewport Projection", self.viewport_api.projection)
-                print("Viewport Transform", self.viewport_api.transform)
         self.update_ui()
 
     def update_ui(self):
@@ -137,6 +132,18 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # self.ui_lbl.text = f"Selected Camera: {self.selected_camera_path}"
         # Ref: https://forums.developer.nvidia.com/t/refresh-window-ui/221200
         self.ui_window.frame.rebuild()
+
+    def on_btn_click(self):
+        # TODO: Allow resetting the camera to a specific position
+        # Below doesn't seem to work
+        # stage: Usd.Stage = self.usd_context.get_stage()
+        # prim: Usd.Prim = stage.GetPrimAtPath('/OmniverseKit_Persp')
+        # # `UsdGeom.Xformable(prim).SetTranslateOp` doesn't seem to exist
+        # prim.GetAttribute("xformOp:translate").Set(Gf.Vec3d(0, 0, 0.1722))
+        # prim.GetAttribute("xformOp:rotateXYZ").Set(Gf.Vec3d(0, -152, 0))
+        # print("translateOp", prim.GetAttribute("xformOp:translate").Get())
+        # print("rotateXYZOp", prim.GetAttribute("xformOp:rotateXYZ").Get())
+        print("[omni.nerf.viewport] (TODO) Reset Camera")
 
     def _get_selected_camera_path(self):
         """Get the selected camera prim. Return None if no camera is selected or the first selected prim isn't a camera."""
@@ -168,12 +175,31 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         """Called by rendering_event_stream."""
         # No need to check event type, since there is only one event type: `NEW_FRAME`.
         if self.is_python_supported:
-            # TODO: Use viewport transform.
-            camera_position = [0, 0, 0]
-            camera_rotation = [0, 0, 0]
-            self.rpyc_conn.execute(f'rq.update_camera({camera_position}, {camera_rotation})')
+            viewport_api = get_active_viewport()
+            # We chose to use Viewport instead of Isaac Sim's Camera Sensor to avoid dependency on Isaac Sim.
+            # We want the extension to work with any Omniverse app, not just Isaac Sim.
+            # Ref: https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html
+            camera_mat: Gf.Matrix4d = viewport_api.transform
+            # TODO: Use viewport camera projection matrix `viewport_api.projection`?
+            camera_position: Gf.Vec3d = camera_mat.ExtractTranslation()
+            camera_rotation: Gf.Vec3d = camera_mat.ExtractRotation().Decompose(*Gf.Matrix3d())
+            # Not same as below due to the potential difference in rotation matrix representation
+            # ```
+            # from scipy.spatial.transform import Rotation as R
+            # camera_rotation: Gf.Vec3d = R.from_matrix(camera_mat.ExtractRotationMatrix()).as_euler('xyz', degrees=True) # in degrees
+            # ```
+            # TODO: Consider object transform (if it is moved or rotated)
+            # No need to transform from Isaac Sim space to Nerfstudio space, since they are both in the same space.
+            # Ref: https://github.com/j3soon/coordinate-system-conventions
+            if camera_position != self.camera_position or camera_rotation != self.camera_rotation:
+                self.camera_position = camera_position
+                self.camera_rotation = camera_rotation
+                print("[omni.nerf.viewport] New camera position:", camera_position)
+                print("[omni.nerf.viewport] New camera rotation:", camera_rotation)
+                self.rpyc_conn.execute(f'rq.update_camera({list(camera_position)}, {list(np.deg2rad(camera_rotation))})')
             image = self.rpyc_conn.eval('rq.get_rgb_image()')
             if image is not None:
+                print("[omni.nerf.viewport] NeRF viewport updated")
                 image = np.array(image) # received with shape (H*, W*, 3)
                 image = cv2.resize(image, (self.rgba_w, self.rgba_h), interpolation=cv2.INTER_LINEAR) # resize to (H, W, 3)
                 self.rgba[:,:,:3] = image * 255
