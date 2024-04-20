@@ -42,10 +42,11 @@ class RendererCameraConfig:
         RendererCameraConfig
             A default config.
         """
+        # These configurations are chosen empirically, and may be subject to change.
         return RendererCameraConfig([
-            { 'width': 90,  'height': 42,  'fov': 72 },
-            { 'width': 180, 'height': 84,  'fov': 72 },
-            { 'width': 450, 'height': 210, 'fov': 72 },
+            { 'width': 90,  'height': 42,  'fov': 50 },
+            { 'width': 180, 'height': 84,  'fov': 50 },
+            { 'width': 450, 'height': 210, 'fov': 50 },
         ])
 
     def load_config(file_path=None):
@@ -90,9 +91,7 @@ class NerfStudioRenderQueue():
                  checkpoint_path,
                  device,
                  thread_count=3,
-                 camera_config_path=None,
-                 pose_check_position_threshold=0.00001,
-                 pose_check_rotation_threshold=3):
+                 camera_config_path=None):
         """
         Parameters
         ----------
@@ -102,22 +101,10 @@ class NerfStudioRenderQueue():
         camera_config_path : str, optional
             The path to the config file.
             Uses `RendererCameraConfig.default_config()` when not assigned.
-
-        pose_check_position_threshold : float, optional
-            Two cameras are treated as identical in position,
-            if the sum of squared differences of their position vectors is under this threshold.
-
-        pose_check_position_threshold : float, optional
-            Two cameras are treated as identical in rotation,
-            if the sum of differences of their euler angle rotation vectors is under this threshold.
         """
         # Construct camera config and renderer
         self.camera_config = RendererCameraConfig.load_config(camera_config_path)
         self.renderer = NerfStudioRenderer(model_config_path, checkpoint_path, device)
-
-        # Pose Check Thresholds
-        self._pose_check_position_threshold = pose_check_position_threshold
-        self._pose_check_rotation_threshold = pose_check_rotation_threshold
 
         # Data maintained for optimization:
         self._last_request_camera_position = (-np.inf, -np.inf, -np.inf)
@@ -235,8 +222,4 @@ class NerfStudioRenderQueue():
 
     # Checks if camera pose is similar to what was recorded.
     def _is_input_similar(self, position, rotation):
-        # TODO: Change to more geometrically meaningful metric, such as
-        # Euclidean distance in 3D space, and angular distance in SO(3).
-        position_diff = sum([(a - b) * (a - b) for a, b in zip(position, self._last_request_camera_position)])
-        rotation_diff = sum([(a - b) for a, b in zip(rotation, self._last_request_camera_rotation)])
-        return (position_diff < self._pose_check_position_threshold) and (rotation_diff < self._pose_check_rotation_threshold)
+        return position == self._last_request_camera_position and rotation == self._last_request_camera_rotation
