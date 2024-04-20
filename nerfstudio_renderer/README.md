@@ -64,7 +64,7 @@ import random
 import time
 
 # Make connection
-conn = rpyc.classic.connect('localhost', port=7007)
+conn = rpyc.classic.connect('localhost', port=10001)
 
 # Imports
 conn.execute('import nerfstudio_renderer')

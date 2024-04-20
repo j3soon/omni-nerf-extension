@@ -8,10 +8,10 @@ services:
         - CUDA_VERSION=11.8.0
         - CUDA_ARCHITECTURES=86
         - OS_VERSION=22.04
-        - SERVER_PORT=7007
+        - SERVER_PORT=10001
     container_name: nerfstudio-renderer
     ports:
-      - "7007:7007"
+      - "10001:10001"
     environment:
       - DISPLAY=$DISPLAY
     volumes:

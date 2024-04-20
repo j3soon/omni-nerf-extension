@@ -10,7 +10,7 @@ import rpyc
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default='localhost')
-    parser.add_argument("--port", type=int, default=7007)
+    parser.add_argument("--port", type=int, default=10001)
     parser.add_argument("--model_config_path", type=str, required=True)
     parser.add_argument("--model_checkpoint_path", type=str, required=True)
     parser.add_argument("--device", type=str, choices=['cpu', 'cuda'], default='cuda')
