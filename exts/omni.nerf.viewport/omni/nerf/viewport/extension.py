@@ -34,18 +34,10 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # To see the Python print output in Omniverse Code, open the `Script Editor`.
         # In Isaac Sim, see the startup console instead.
         print("[omni.nerf.viewport] omni nerf viewport startup")
-        self.selected_camera_path = None
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/stage/get-current-stage.html
         self.usd_context = omni.usd.get_context()
         # Subscribe to event streams
         # Ref: https://docs.omniverse.nvidia.com/kit/docs/kit-manual/latest/guide/event_streams.html
-        # Listen to selection changes
-        # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/object_info.html#step-3-4-use-usdcontext-to-listen-for-selection-changes
-        self.stage_event_stream = self.usd_context.get_stage_event_stream()
-        self.stage_event_delegate = self.stage_event_stream.create_subscription_to_pop(
-            self._on_stage_event, name="Object Info Selection Update"
-        )
-        # TODO: Subscribe to only certain event types
         # Ref: https://docs.omniverse.nvidia.com/kit/docs/kit-manual/104.0/carb.events/carb.events.IEventStream.html#carb.events.IEventStream.create_subscription_to_pop_by_type
         # Listen to rendering events. Only triggered when the viewport is rendering is updated.
         # Will not be triggered when no viewport is visible on the screen.
@@ -121,20 +113,35 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 )
                 # TODO: Larger image size?
                 with ui.VStack(height=0):
-                    self.ui_lbl = ui.Label("(To Be Updated)")
+                    self.ui_lbl_py = ui.Label("(To Be Updated)")
                     state = "supported" if platform.python_version().startswith("3.10") else "NOT supported"
-                    self.ui_lbl.text = f"Python {platform.python_version()} is {state}"
-                    self.ui_btn = ui.Button("Reset Camera", width=20, clicked_fn=self.on_btn_click)
+                    self.ui_lbl_py.text = f"Python {platform.python_version()} is {state}"
+                    # UI for setting the NeRF mesh
+                    # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/scatter_tool.html
+                    with ui.HStack():
+                        self.ui_lbl_mesh = ui.Label("NeRF Mesh", width=65)
+                        # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/ui/widgets/stringfield.html
+                        self._mesh_prim_model = ui.SimpleStringModel()
+                        ui.StringField(model=self._mesh_prim_model)
+                        ui.Button(
+                            " S ",
+                            width=0,
+                            height=0,
+                            clicked_fn=self._on_btn_set_click,
+                            tooltip="Get From Selection",
+                        )
+                    ui.Button("Reset Camera", width=20, clicked_fn=self.on_btn_reset_click)
         self.update_ui()
 
     def update_ui(self):
         print("[omni.nerf.viewport] Updating UI")
-        print(f"[omni.nerf.viewport] Selected Camera: {self.selected_camera_path}")
-        # self.ui_lbl.text = f"Selected Camera: {self.selected_camera_path}"
         # Ref: https://forums.developer.nvidia.com/t/refresh-window-ui/221200
         self.ui_window.frame.rebuild()
 
-    def on_btn_click(self):
+    def _on_btn_set_click(self):
+        self._mesh_prim_model.as_string = self._get_selected_prim_path()
+
+    def on_btn_reset_click(self):
         # TODO: Allow resetting the camera to a specific position
         # Below doesn't seem to work
         # stage: Usd.Stage = self.usd_context.get_stage()
@@ -146,49 +153,43 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # print("rotateXYZOp", prim.GetAttribute("xformOp:rotateXYZ").Get())
         print("[omni.nerf.viewport] (TODO) Reset Camera")
 
-    def _get_selected_camera_path(self):
-        """Get the selected camera prim. Return None if no camera is selected or the first selected prim isn't a camera."""
+    def _get_selected_prim_path(self):
+        """Get the selected prim. Return '' if no prim is selected."""
         # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/object_info.html#step-5-get-the-selected-prims-data
         selected_prim_paths = self.usd_context.get_selection().get_selected_prim_paths()
         if not selected_prim_paths:
-            return None
-        stage: Usd.Stage = self.usd_context.get_stage()
-        selected_prim = stage.GetPrimAtPath(selected_prim_paths[0])
-        assert type(selected_prim) == Usd.Prim
-        if not selected_prim.IsA(UsdGeom.Camera):
-            return None
-        return selected_prim.GetPath()
-
-    def _on_stage_event(self, event):
-        """Called by stage_event_stream. We only care about selection changes."""
-        print("[omni.nerf.viewport] on_stage_event", omni.usd.StageEventType(event.type))
-        if event.type != int(omni.usd.StageEventType.SELECTION_CHANGED):
-            return
-        selected_camera_path = self._get_selected_camera_path()
-        if self.selected_camera_path == selected_camera_path:
-            # Skip if the selected camera hasn't changed
-            print("[omni.nerf.viewport] Skip updating UI")
-            return
-        self.selected_camera_path = selected_camera_path
-        self.update_ui()
+            return ''
+        return selected_prim_paths[0]
 
     def _on_rendering_event(self, event):
         """Called by rendering_event_stream."""
         # No need to check event type, since there is only one event type: `NEW_FRAME`.
-        if self.is_python_supported:
+        if self.is_python_supported and self._mesh_prim_model.as_string != '':
             viewport_api = get_active_viewport()
             # We chose to use Viewport instead of Isaac Sim's Camera Sensor to avoid dependency on Isaac Sim.
             # We want the extension to work with any Omniverse app, not just Isaac Sim.
             # Ref: https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html
             camera_to_world_mat: Gf.Matrix4d = viewport_api.transform
-            camera_position: Gf.Vec3d = camera_to_world_mat.ExtractTranslation()
+            object_to_world_mat: Gf.Matrix4d = Gf.Matrix4d()
+            if self._mesh_prim_model.as_string != '':
+                stage: Usd.Stage = self.usd_context.get_stage()
+                selected_prim: Usd.Prim = stage.GetPrimAtPath(self._mesh_prim_model.as_string)
+                selected_xform: UsdGeom.Xformable = UsdGeom.Xformable(selected_prim)
+                object_to_world_mat = selected_xform.GetLocalTransformation()
+            # In USD, pre-multiplication is used for matrices.
+            # Ref: https://openusd.org/dev/api/usd_geom_page_front.html#UsdGeom_LinAlgBasics
+            world_to_object_mat: Gf.Matrix4d = object_to_world_mat.GetInverse()
+            camera_to_object_mat: Gf.Matrix4d = camera_to_world_mat * world_to_object_mat
+            camera_to_object_pos: Gf.Vec3d = camera_to_object_mat.ExtractTranslation()
             # I suspect that the `Decompose` function will extract the rotation in the order of the input axes.
             # So for EulerXYZ, we want to first extract and remove the Z rotation, then Y, then X.
             # Then we reverse the order to get the XYZ rotation.
             # I haven't spend time looking into the source code to confirm this hypothesis though.
             # Ref: https://forums.developer.nvidia.com/t/how-to-get-euler-angle-of-the-prim-through-script-with-script-editor/269704/3
             # Ref: https://github.com/PixarAnimationStudios/OpenUSD/blob/2864f3d04f396432f22ec5d6928fc37d34bb4c90/pxr/base/gf/rotation.cpp#L108
-            camera_rotation: Gf.Vec3d = Gf.Vec3d(*reversed(camera_to_world_mat.ExtractRotation().Decompose(*reversed(Gf.Matrix3d()))))
+            # must remove scale before rotation
+            camera_to_object_mat.Orthonormalize()
+            camera_to_object_rot: Gf.Vec3d = Gf.Vec3d(*reversed(camera_to_object_mat.ExtractRotation().Decompose(*reversed(Gf.Matrix3d()))))
             # TODO: Consider using viewport camera projection matrix `viewport_api.projection`?
             # Not same as below due to the potential difference in rotation matrix representation
             # ```
@@ -198,12 +199,12 @@ class OmniNerfViewportExtension(omni.ext.IExt):
             # TODO: Consider object transform (if it is moved or rotated)
             # No need to transform from Isaac Sim space to Nerfstudio space, since they are both in the same space.
             # Ref: https://github.com/j3soon/coordinate-system-conventions
-            if camera_position != self.camera_position or camera_rotation != self.camera_rotation:
-                self.camera_position = camera_position
-                self.camera_rotation = camera_rotation
-                print("[omni.nerf.viewport] New camera position:", camera_position)
-                print("[omni.nerf.viewport] New camera rotation:", camera_rotation)
-                self.rpyc_conn.execute(f'rq.update_camera({list(camera_position)}, {list(np.deg2rad(camera_rotation))})')
+            if camera_to_object_pos != self.camera_position or camera_to_object_rot != self.camera_rotation:
+                self.camera_position = camera_to_object_pos
+                self.camera_rotation = camera_to_object_rot
+                print("[omni.nerf.viewport] New camera position:", camera_to_object_pos)
+                print("[omni.nerf.viewport] New camera rotation:", camera_to_object_rot)
+                self.rpyc_conn.execute(f'rq.update_camera({list(camera_to_object_pos)}, {list(np.deg2rad(camera_to_object_rot))})')
             image = self.rpyc_conn.eval('rq.get_rgb_image()')
             if image is not None:
                 print("[omni.nerf.viewport] NeRF viewport updated")
