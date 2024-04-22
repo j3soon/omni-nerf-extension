@@ -6,6 +6,6 @@ RUN apt-get update \
 WORKDIR /root
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
-WORKDIR /workspace
+WORKDIR /src
 
 ENTRYPOINT bash
