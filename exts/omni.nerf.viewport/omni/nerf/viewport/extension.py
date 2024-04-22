@@ -58,7 +58,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # TODO: Consider subscribing to update events
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
         # Allocate memory
-        self.rgba_w, self.rgba_h = 640, 480
+        self.rgba_w, self.rgba_h = 640, 360 # Follow default camera resolution 1280x720
         self.rgba = np.ones((self.rgba_h, self.rgba_w, 4), dtype=np.uint8) * 128
         """RGBA image buffer. The shape is (H, W, 4), following the NumPy convention."""
         self.rgba[:,:,3] = 255
@@ -90,11 +90,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         self.ui_window = ui.Window("NeRF Viewport", width=self.rgba_w, height=self.rgba_h)
 
         with self.ui_window.frame:
-            with ui.VStack():
-                self.ui_lbl = ui.Label("(To Be Updated)")
-                state = "supported" if platform.python_version().startswith("3.10") else "NOT supported"
-                self.ui_lbl.text = f"Python {platform.python_version()} is {state}"
-                self.ui_btn = ui.Button("Reset Camera", width=20, clicked_fn=self.on_btn_click)
+            with ui.ZStack():
                 # Camera Viewport
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.kit.viewport.docs/latest/overview.html#simplest-example
                 # Don't create a new viewport widget as below, since the viewport widget will often flicker.
@@ -102,9 +98,9 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 # ```
                 # from omni.kit.widget.viewport import ViewportWidget
                 # self.ui_viewport_widget = ViewportWidget(
-                #     resolution = (640, 480),
+                #     resolution = (640, 360),
                 #     width = 640,
-                #     height = 480,
+                #     height = 360,
                 # )
                 # self.viewport_api = self.ui_viewport_widget.viewport_api
                 # ````
@@ -124,6 +120,11 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                     height=ui.Percent(100),
                 )
                 # TODO: Larger image size?
+                with ui.VStack(height=0):
+                    self.ui_lbl = ui.Label("(To Be Updated)")
+                    state = "supported" if platform.python_version().startswith("3.10") else "NOT supported"
+                    self.ui_lbl.text = f"Python {platform.python_version()} is {state}"
+                    self.ui_btn = ui.Button("Reset Camera", width=20, clicked_fn=self.on_btn_click)
         self.update_ui()
 
     def update_ui(self):
@@ -179,10 +180,16 @@ class OmniNerfViewportExtension(omni.ext.IExt):
             # We chose to use Viewport instead of Isaac Sim's Camera Sensor to avoid dependency on Isaac Sim.
             # We want the extension to work with any Omniverse app, not just Isaac Sim.
             # Ref: https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html
-            camera_mat: Gf.Matrix4d = viewport_api.transform
-            # TODO: Use viewport camera projection matrix `viewport_api.projection`?
-            camera_position: Gf.Vec3d = camera_mat.ExtractTranslation()
-            camera_rotation: Gf.Vec3d = camera_mat.ExtractRotation().Decompose(*Gf.Matrix3d())
+            camera_to_world_mat: Gf.Matrix4d = viewport_api.transform
+            camera_position: Gf.Vec3d = camera_to_world_mat.ExtractTranslation()
+            # I suspect that the `Decompose` function will extract the rotation in the order of the input axes.
+            # So for EulerXYZ, we want to first extract and remove the Z rotation, then Y, then X.
+            # Then we reverse the order to get the XYZ rotation.
+            # I haven't spend time looking into the source code to confirm this hypothesis though.
+            # Ref: https://forums.developer.nvidia.com/t/how-to-get-euler-angle-of-the-prim-through-script-with-script-editor/269704/3
+            # Ref: https://github.com/PixarAnimationStudios/OpenUSD/blob/2864f3d04f396432f22ec5d6928fc37d34bb4c90/pxr/base/gf/rotation.cpp#L108
+            camera_rotation: Gf.Vec3d = Gf.Vec3d(*reversed(camera_to_world_mat.ExtractRotation().Decompose(*reversed(Gf.Matrix3d()))))
+            # TODO: Consider using viewport camera projection matrix `viewport_api.projection`?
             # Not same as below due to the potential difference in rotation matrix representation
             # ```
             # from scipy.spatial.transform import Rotation as R

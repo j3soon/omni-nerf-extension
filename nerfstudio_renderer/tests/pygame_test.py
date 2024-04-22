@@ -44,7 +44,7 @@ def main(args):
     pygame.init()
 
     # Set the width and height of the window
-    width, height = 640, 480
+    width, height = 640, 360
     window_size = (width, height)
 
     # Create a Pygame window
