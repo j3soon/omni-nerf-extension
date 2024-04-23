@@ -206,11 +206,12 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                 print("[omni.nerf.viewport] New camera rotation:", camera_to_object_rot)
                 self.rpyc_conn.execute(f'rq.update_camera({list(camera_to_object_pos)}, {list(np.deg2rad(camera_to_object_rot))})')
             image = self.rpyc_conn.eval('rq.get_rgb_image()')
-            if image is not None:
-                print("[omni.nerf.viewport] NeRF viewport updated")
-                image = np.array(image) # received with shape (H*, W*, 3)
-                image = cv2.resize(image, (self.rgba_w, self.rgba_h), interpolation=cv2.INTER_LINEAR) # resize to (H, W, 3)
-                self.rgba[:,:,:3] = image * 255
+            if image is None:
+                return
+            print("[omni.nerf.viewport] NeRF viewport updated")
+            image = np.array(image) # received with shape (H*, W*, 3)
+            image = cv2.resize(image, (self.rgba_w, self.rgba_h), interpolation=cv2.INTER_LINEAR) # resize to (H, W, 3)
+            self.rgba[:,:,:3] = image * 255
         else:
             # If python version is not supported, render the dummy image.
             self.rgba[:,:,:3] = (self.rgba[:,:,:3] + np.ones((self.rgba_h, self.rgba_w, 3), dtype=np.uint8)) % 256
