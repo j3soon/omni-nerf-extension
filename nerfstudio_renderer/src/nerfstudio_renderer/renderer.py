@@ -55,6 +55,11 @@ class NerfStudioRenderer():
         if config.pipeline.model.use_average_appearance_embedding:
             print("WARNING: Forcing zero appearance embedding, although model config specifies to use average appearance embedding.")
         config.pipeline.model.use_average_appearance_embedding = False
+        # Disable predict normals
+        # Ref: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/fields/nerfacto_field.py#L116
+        if config.pipeline.model.predict_normals:
+            print("WARNING: Forcing not predicting normals.")
+        config.pipeline.model.predict_normals = False
         # TODO: Support configuring `eval_num_rays_per_chunk`
         # Ref: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/utils/eval_utils.py#L92-L93
 
