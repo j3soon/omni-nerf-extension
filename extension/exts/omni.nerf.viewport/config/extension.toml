@@ -3,7 +3,7 @@
 version = "0.0.1"
 
 # Lists people or organizations that are considered the "authors" of the package.
-authors = ["NVIDIA"]
+authors = ["Johnson Sun", "Yan-Bin Diau"]
 
 # The title and description fields are primarily for displaying extension info in UI
 title = "omni nerf viewport"
