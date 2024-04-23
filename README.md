@@ -15,6 +15,14 @@ Neural Radiance Field (NeRF) extension for Omniverse.
   - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
   - Omniverse Isaac Sim (through NGC Container)
 
+## Demo
+
+https://github.com/j3soon/omni-nerf-extension/assets/20457146/4b022624-a172-40b5-a5ad-c0ae678412f8
+
+> At the exterior of the National Tsing Hua University (NTHU) swimming pool. Collected by [@muyishen2040](https://github.com/muyishen2040), which is also used in the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF).
+
+**Note**: The datasets for these demos are not provided in this repository as they are casually collected. The purpose of these demos is to illustrate that this repository can be readily applied to a variety of datasets. The following guide will use the `Poster` dataset for simplicity.
+
 ## Setup
 
 ```sh
@@ -105,7 +113,7 @@ docker exec -it isaac-sim-viewer bash
 https://github.com/j3soon/omni-nerf-extension/assets/20457146/5203061a-3b23-4d72-8103-5e3a6e9923a7
 
 **Known Issues**:
-- The Omniverse UI seems to block the use of double-clicking when the extension is enabled. I believe this is due to the rendering updates interrupting the determination of the double-click event. This issue can be bypassed by using single left-clicks and right-clicks instead.
+- The Omniverse UI seems to block the use of double-clicking when the extension is enabled. I believe this is due to the rendering updates interrupting the determination of the double-click event. This issue can be bypassed by using single left-clicks and right-clicks instead. Alternatively, move the NeRF Viewport to cover the default Viewport (such that the rendering stops).
 - Cannot correctly handling non-uniform scaling of the object mesh yet.
 
 ## Development Notes
@@ -144,9 +152,9 @@ This project focuses on the simplest integration of a NeRF renderer with Omniver
 
 This project has been made possible through the support of [ElsaLab][elsalab] and [NVIDIA AI Technology Center (NVAITC)][nvaitc].
 
-Special thanks to [@tigerpaws01](https://github.com/tigerpaws01) for the initial implementation of the NeRF renderer backend and PyGame viewer. Fun fact: this project was initiated during one of our dinner conversation.
+Special thanks to [@tigerpaws01](https://github.com/tigerpaws01) for the initial implementation of the NeRF renderer backend and PyGame viewer. This project wouldn't have come to light if it weren't for his early contributions. Fun fact: this project was initiated during one of our dinner conversation.
 
-I would also like to thank the NeRF Study Group members, [@muyishen2040](https://github.com/muyishen2040), [@AndreaHsu](https://github.com/AndreaHsu), [@Howardkhh](https://github.com/Howardkhh), and [VickyHuang1113](https://github.com/VickyHuang1113). Many insights are taken from the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF).
+I would also like to thank the NeRF Study Group members, [@muyishen2040](https://github.com/muyishen2040), [@AndreaHsu](https://github.com/AndreaHsu), [@Howardkhh](https://github.com/Howardkhh), and [VickyHuang1113](https://github.com/VickyHuang1113). Numerous insights and experiences have been gained through the collaboration on the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF), which has significantly accelerated the development process of this project.
 
 For a complete list of contributors to the code of this repository, please visit the [contributor list](https://github.com/j3soon/OmniIsaacGymEnvs-UR10Reacher/graphs/contributors).
 
