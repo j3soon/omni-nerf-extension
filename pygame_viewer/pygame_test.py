@@ -112,7 +112,7 @@ def main(args):
         else:
             rq.update_camera(camera_position, camera_rotation)
 
-        if int(time.time()) % 3 == 0:
+        if int(time.time()) % 5 == 0:
             camera_curve_time += 1.0 / 30.0
 
     if not args.rpyc:

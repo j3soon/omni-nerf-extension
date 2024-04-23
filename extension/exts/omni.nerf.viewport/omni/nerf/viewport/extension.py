@@ -50,7 +50,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # TODO: Consider subscribing to update events
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
         # Allocate memory
-        self.rgba_w, self.rgba_h = 640, 360 # Follow default camera resolution 1280x720
+        self.rgba_w, self.rgba_h = 1280, 720 # Follow default camera resolution 1280x720
         self.rgba = np.ones((self.rgba_h, self.rgba_w, 4), dtype=np.uint8) * 128
         """RGBA image buffer. The shape is (H, W, 4), following the NumPy convention."""
         self.rgba[:,:,3] = 255

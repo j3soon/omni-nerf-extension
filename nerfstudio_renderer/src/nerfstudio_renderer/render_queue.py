@@ -70,6 +70,10 @@ class RendererCameraConfig:
             { 'width': 128, 'height': 72,  'fov': 35.98339777135764 },
             # 0.25x resolution
             { 'width': 320, 'height': 180, 'fov': 35.98339777135764 },
+            # 0.5x resolution
+            { 'width': 640, 'height': 360, 'fov': 35.98339777135764 },
+            # 1x resolution
+            { 'width': 1280, 'height': 720, 'fov': 35.98339777135764 },
         ])
 
     def load_config(file_path=None):
