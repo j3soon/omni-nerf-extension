@@ -1,4 +1,4 @@
-FROM dromni/nerfstudio:0.3.4
+FROM dromni/nerfstudio:1.0.3
 
 ARG SERVER_PORT
 ENV SERVER_PORT=$SERVER_PORT

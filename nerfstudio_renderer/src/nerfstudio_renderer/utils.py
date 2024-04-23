@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
+from nerfstudio.viewer_legacy.server.utils import three_js_perspective_camera_focal_length
 from scipy.spatial.transform import Rotation as R
 
 

@@ -33,6 +33,7 @@ class NerfStudioRenderer():
         # Thus, even when performing inference, training dataset is needed.
         # The following code is a workaround that doesn't require to set up the entire Pipeline.
         # It load solely the model checkpoint with regard to its TrainerConfig YAML, without needing to set up the entire Pipeline.
+        # Note that all code below are based on the v0.3.4 tag: https://github.com/nerfstudio-project/nerfstudio/tree/v0.3.4
 
         self.device = device
 
