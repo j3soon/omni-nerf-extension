@@ -17,7 +17,23 @@
 ```sh
 git clone https://github.com/j3soon/omni-nerf-extension
 cd omni-nerf-extension
-# TODO: Download example files
+```
+
+Download assets:
+
+```sh
+wget https://github.com/j3soon/omni-nerf-extension/releases/download/v0.0.1/assets.zip
+unzip assets.zip
+```
+
+Prepare assets for `nerfstudio_renderer`:
+
+```sh
+# change the DATE_TIME to the name of the placeholder
+DATE_TIME=2023-12-30_111633
+CHECKPOINT_NAME=step-000029999
+cp -r ./assets/outputs/poster/nerfacto/$DATE_TIME ./assets/outputs/poster/nerfacto/DATE_TIME
+mv ./assets/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/$CHECKPOINT_NAME.ckpt ./assets/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt
 ```
 
 The following assumes that you are running the commands from the root of the repository.
