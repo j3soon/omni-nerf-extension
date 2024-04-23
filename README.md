@@ -130,11 +130,21 @@ cd extension
 
 After modifying code, you can restart Isaac Sim to apply changes. The docker container can be re-used since the code is mounted as a volume. If the change is small, it is often faster to disable and re-enable the extension in the Isaac Sim UI. This can be done through `Window > Extensions > NVIDIA > General`, search `nerf`, and then un-toggle and re-toggle the extension.
 
+## Future Directions
+
+- Include 3D Gaussian Splatting (3DGS) backend for real-time rendering, which is supported by a newer version of Nerfstudio, see [Splatfacto](https://docs.nerf.studio/nerfology/methods/splat.html) for more details.
+- Include [SDFStudio Neuralangelo](https://github.com/autonomousvision/sdfstudio?tab=readme-ov-file#updates) for improved mesh extraction. However, I've heard that SDFStudio does not perform as well as the original [Neuralangelo](https://research.nvidia.com/labs/dir/neuralangelo/) implementation.
+- Support multiple Nerf renderings in a single scene potentially through [Compositioning](https://docs.nerf.studio/extensions/blender_addon.html#compositing-nerf-objects-in-nerf-environments) or [Block-NeRF](https://waymo.com/intl/zh-tw/research/block-nerf/).
+
+## Related Works
+
+This project focuses on the simplest integration of a NeRF renderer with Omniverse, which diverges from more advanced usages, such as those proposed in [a talk from GTC Spring 2023](https://www.nvidia.com/en-us/on-demand/session/gtcspring23-s52163/). The formal way to integrate NeRF with Omniverse is to first prototype with [custom](https://learnusd.github.io/chapter4/primspecs_and_attributes.html) [USD attributes](https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/properties/create-attribute.html). The NeRF rendering can then be done by reading the custom USD attributes, using special [MDL](https://developer.nvidia.com/rendering-technologies/mdl-sdk) materials, or other clever techniques. Although this allows more advanced usages, this approach is much more difficult to implement. Moreover, the rasterization techniques used in 3DGS is fundamentally different from the volume-rendering techniques used in NeRF, which may require using two different rendering engines in the same scene.
+
 ## Acknowledgement
 
 This project has been made possible through the support of [ElsaLab][elsalab] and [NVIDIA AI Technology Center (NVAITC)][nvaitc].
 
-Special thanks to [@tigerpaws01](https://github.com/tigerpaws01) for the initial implementation of the NeRF renderer backend. Fun fact: this project was initiated during one of our dinner conversation.
+Special thanks to [@tigerpaws01](https://github.com/tigerpaws01) for the initial implementation of the NeRF renderer backend and PyGame viewer. Fun fact: this project was initiated during one of our dinner conversation.
 
 I would also like to thank the NeRF Study Group members, [@muyishen2040](https://github.com/muyishen2040), [@AndreaHsu](https://github.com/AndreaHsu), [@Howardkhh](https://github.com/Howardkhh), and [VickyHuang1113](https://github.com/VickyHuang1113). Many insights are taken from the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF).
 
