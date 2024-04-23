@@ -237,8 +237,13 @@ class NerfStudioRenderQueue():
                     if timestamp - self._last_request_timestamp < 0:
                         continue
                 # Render the image
-                # TODO: Allow early return if the request is invalidated.
-                image = self.renderer.render_at(position, rotation, camera['width'], camera['height'], camera['fov'])
+                # Early return if the request is invalidated.
+                def request_invalidated():
+                    with self._last_request_timestamp_lock:
+                        return timestamp - self._last_request_timestamp < 0
+                image = self.renderer.render_at(position, rotation, camera['width'], camera['height'], camera['fov'], request_invalidated)
+                if image is None:
+                    continue
                 # A response must be dropped if there are newer responses.
                 with self._last_response_timestamp_lock:
                     if timestamp - self._last_response_timestamp < 0:

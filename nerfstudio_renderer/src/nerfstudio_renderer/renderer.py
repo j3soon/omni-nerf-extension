@@ -1,5 +1,9 @@
+from collections import defaultdict
+from typing import Dict
+
 import torch
 import yaml
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio_renderer.utils import *
 
@@ -33,6 +37,7 @@ class NerfStudioRenderer():
         # Thus, even when performing inference, training dataset is needed.
         # The following code is a workaround that doesn't require to set up the entire Pipeline.
         # It load solely the model checkpoint with regard to its TrainerConfig YAML, without needing to set up the entire Pipeline.
+        # Note that all code below are based on the v0.3.4 tag: https://github.com/nerfstudio-project/nerfstudio/tree/v0.3.4
 
         self.device = device
 
@@ -169,7 +174,36 @@ class NerfStudioRenderer():
         # Ref: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/pipelines/base_pipeline.py#L130
         self.model.load_state_dict(model_state, strict=False)
 
-    def render_at(self, position, rotation, width, height, fov):
+    # Ref: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/models/base_model.py#L175
+    @torch.no_grad()
+    def get_outputs_for_camera_ray_bundle(self, model, camera_ray_bundle: RayBundle, invalidated_fn) -> Dict[str, torch.Tensor]:
+        """Takes in camera parameters and computes the output of the model.
+
+        Args:
+            camera_ray_bundle: ray bundle to calculate outputs over
+        """
+        num_rays_per_chunk = model.config.eval_num_rays_per_chunk
+        image_height, image_width = camera_ray_bundle.origins.shape[:2]
+        num_rays = len(camera_ray_bundle)
+        outputs_lists = defaultdict(list)
+        for i in range(0, num_rays, num_rays_per_chunk):
+            if invalidated_fn():
+                return None
+            start_idx = i
+            end_idx = i + num_rays_per_chunk
+            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            outputs = model.forward(ray_bundle=ray_bundle)
+            for output_name, output in outputs.items():  # type: ignore
+                if not torch.is_tensor(output):
+                    # TODO: handle lists of tensors as well
+                    continue
+                outputs_lists[output_name].append(output)
+        outputs = {}
+        for output_name, outputs_list in outputs_lists.items():
+            outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
+        return outputs
+
+    def render_at(self, position, rotation, width, height, fov, invalidated_fn):
         """
         Parameters
         ----------
@@ -188,6 +222,9 @@ class NerfStudioRenderer():
         fov : float
             The vertical field-of-view of the camera.
 
+        invalidated_fn : Callable[[], bool]
+            Function that returns whether the request is invalidated.
+
         Returns
         ----------
         np.array
@@ -202,9 +239,11 @@ class NerfStudioRenderer():
 
         # Inference
         with torch.no_grad():
-            # TODO: Allow early return between the calculation of ray bundles if the request is invalidated.
             # See: https://github.com/nerfstudio-project/nerfstudio/blob/c87ebe34ba8b11172971ce48e44b6a8e8eb7a6fc/nerfstudio/models/base_model.py#L175
-            outputs = self.model.get_outputs_for_camera_ray_bundle(ray_bundle)['rgb']
+            outputs = self.get_outputs_for_camera_ray_bundle(self.model, ray_bundle, invalidated_fn)
+            if outputs is None:
+                # Allow early return between the calculation of ray bundles if the request is invalidated.
+                return None
 
         # Return results
-        return outputs.cpu().numpy()
+        return outputs['rgb'].cpu().numpy()
