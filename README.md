@@ -1,4 +1,6 @@
-# Omniverse NeRF Plugin
+# Omniverse NeRF Extension
+
+Neural Radiance Field (NeRF) extension for Omniverse.
 
 ## Prerequisites
 
@@ -11,6 +13,7 @@
   - [NVIDIA Driver](https://ubuntu.com/server/docs/nvidia-drivers-installation)
   - [Docker](https://docs.docker.com/engine/install/ubuntu/)
   - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+  - Omniverse Isaac Sim (through NGC Container)
 
 ## Setup
 
@@ -101,6 +104,10 @@ docker exec -it isaac-sim-viewer bash
 
 (TODO: Preview Video x2)
 
+**Known Issues**:
+- The Omniverse UI seems to block the use of double-clicking when the extension is enabled. I believe this is due to the rendering updates interrupting the determination of the double-click event. This issue can be bypassed by using single left-clicks and right-clicks instead.
+- Cannot correctly handling non-uniform scaling of the object mesh yet.
+
 ## Development Notes
 
 ### Nerfstudio Renderer
@@ -122,3 +129,21 @@ cd extension
 ```
 
 After modifying code, you can restart Isaac Sim to apply changes. The docker container can be re-used since the code is mounted as a volume. If the change is small, it is often faster to disable and re-enable the extension in the Isaac Sim UI. This can be done through `Window > Extensions > NVIDIA > General`, search `nerf`, and then un-toggle and re-toggle the extension.
+
+## Acknowledgement
+
+This project has been made possible through the support of [ElsaLab][elsalab] and [NVIDIA AI Technology Center (NVAITC)][nvaitc].
+
+Special thanks to [@tigerpaws01](https://github.com/tigerpaws01) for the initial implementation of the NeRF renderer backend. Fun fact: this project was initiated during one of our dinner conversation.
+
+I would also like to thank the NeRF Study Group members, [@muyishen2040](https://github.com/muyishen2040), [@AndreaHsu](https://github.com/AndreaHsu), [@Howardkhh](https://github.com/Howardkhh), and [VickyHuang1113](https://github.com/VickyHuang1113). Many insights are taken from the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF).
+
+For a complete list of contributors to the code of this repository, please visit the [contributor list](https://github.com/j3soon/OmniIsaacGymEnvs-UR10Reacher/graphs/contributors).
+
+[![](docs/media/logos/elsalab.png)][elsalab]
+[![](docs/media/logos/nvaitc.png)][nvaitc]
+
+[elsalab]: https://github.com/elsa-lab
+[nvaitc]: https://github.com/NVAITC
+
+Disclaimer: this is not an official NVIDIA product.

@@ -35,8 +35,10 @@ Follow the [training model](https://docs.nerf.studio/quickstart/first_nerf.html)
 # in the container
 # Download some test data:
 ns-download-data nerfstudio --capture-name=poster
-# Train model
+# Train model without normal prediction (used in the provided example poster assets for simplicity)
 ns-train nerfacto --data data/nerfstudio/poster
+# or train model with normal prediction (preferred)
+ns-train nerfacto --data data/nerfstudio/poster --pipeline.model.predict-normals True
 # wait for training to finish
 ```
 
