@@ -43,10 +43,37 @@ class RendererCameraConfig:
             A default config.
         """
         # These configurations are chosen empirically, and may be subject to change.
+        # Nerfstudio camera defaults:
+        # - vertical FoV: 50 degrees
+        # Isaac Sim camera defaults:
+        # - Size: 1280x720
+        # - Focal Length: 18.14756
+        # - Horizontal Aperture: 20.955
+        # - Vertical Aperture: (Value Unused)
+        # - (Calculated) horizontal FoV = math.degrees(2 * math.atan(20.955 / (2 * 18.14756))) = 60
+        # The following vertical FoV is chosen to follow the Isaac Sim camera defaults.
+        # Some useful equations:
+        # - focal_length = width / (2 * math.tan(math.radians(fov_horizontal) / 2))
+        # - focal_length = height / (2 * math.tan(math.radians(fov_vertical) / 2))
+        # - fov_vertical = math.degrees(2 * math.atan(height / (2 * focal_length)))
+        # - fov_horizontal = math.degrees(2 * math.atan(width / (2 * focal_length)))
+        # - fov_horizontal = math.degrees(2 * math.atan(horiz_aperture / (2 * focal_length)))
+        #   Ref: https://forums.developer.nvidia.com/t/change-intrinsic-camera-parameters/180309/6
+        # - aspect_ratio = width / height
+        # - fov_vertical = math.degrees(2 * math.atan((height / width) * math.tan(math.radians(fov_horizontal) / 2)))
         return RendererCameraConfig([
-            { 'width': 90,  'height': 42,  'fov': 50 },
-            { 'width': 180, 'height': 84,  'fov': 50 },
-            { 'width': 450, 'height': 210, 'fov': 50 },
+            # fov_vertical = math.degrees(2 * math.atan((height / width) * math.tan(math.radians(fov_horizontal) / 2)))
+            # = 35.98339777135764
+            # 0.05x resolution
+            { 'width': 64,  'height': 36,  'fov': 35.98339777135764 },
+            # 0.1x resolution
+            { 'width': 128, 'height': 72,  'fov': 35.98339777135764 },
+            # 0.25x resolution
+            { 'width': 320, 'height': 180, 'fov': 35.98339777135764 },
+            # 0.5x resolution
+            { 'width': 640, 'height': 360, 'fov': 35.98339777135764 },
+            # 1x resolution
+            { 'width': 1280, 'height': 720, 'fov': 35.98339777135764 },
         ])
 
     def load_config(file_path=None):

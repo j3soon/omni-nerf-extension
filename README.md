@@ -1,52 +1,124 @@
-# Extension Project Template
+# Omniverse NeRF Plugin
 
-This project was automatically generated.
+## Prerequisites
 
-- `app` - It is a folder link to the location of your *Omniverse Kit* based app.
-- `exts` - It is a folder where you can add new extensions. It was automatically added to extension search path. (Extension Manager -> Gear Icon -> Extension Search Path).
+- **Hardware**:
+  - CPU: x86
+  - GPU: NVIDIA RTX GPU
+  - See [this page](https://docs.omniverse.nvidia.com/isaacsim/latest/installation/requirements.html#system-requirements) for more details.
+- **Operating System**: Ubuntu 20.04/22.04.
+- **Software**:
+  - [NVIDIA Driver](https://ubuntu.com/server/docs/nvidia-drivers-installation)
+  - [Docker](https://docs.docker.com/engine/install/ubuntu/)
+  - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 
-Open this folder using Visual Studio Code. It will suggest you to install few extensions that will make python experience better.
+## Setup
 
-Look for "omni.nerf.viewport" extension in extension manager and enable it. Try applying changes to any python files, it will hot-reload and you can observe results immediately.
-
-Alternatively, you can launch your app from console with this folder added to search path and your extension enabled, e.g.:
-
-```
-> app\omni.code.bat --ext-folder exts --enable company.hello.world
-```
-
-# App Link Setup
-
-If `app` folder link doesn't exist or broken it can be created again. For better developer experience it is recommended to create a folder link named `app` to the *Omniverse Kit* app installed from *Omniverse Launcher*. Convenience script to use is included.
-
-Run:
-
-```
-> link_app.bat
+```sh
+git clone https://github.com/j3soon/omni-nerf-extension
+cd omni-nerf-extension
 ```
 
-If successful you should see `app` folder link in the root of this repo.
+Download assets:
 
-If multiple Omniverse apps is installed script will select recommended one. Or you can explicitly pass an app:
-
-```
-> link_app.bat --app create
-```
-
-You can also just pass a path to create link to:
-
-```
-> link_app.bat --path "C:/Users/bob/AppData/Local/ov/pkg/create-2021.3.4"
+```sh
+wget https://github.com/j3soon/omni-nerf-extension/releases/download/v0.0.1/assets.zip
+unzip assets.zip
 ```
 
+Prepare assets for `nerfstudio_renderer`:
 
-# Sharing Your Extensions
+```sh
+# change the DATE_TIME to the name of the placeholder
+DATE_TIME=2023-12-30_111633
+CHECKPOINT_NAME=step-000029999
+cp -r ./assets/outputs/poster/nerfacto/$DATE_TIME ./assets/outputs/poster/nerfacto/DATE_TIME
+mv ./assets/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/$CHECKPOINT_NAME.ckpt ./assets/outputs/poster/nerfacto/DATE_TIME/nerfstudio_models/CHECKPOINT_NAME.ckpt
+```
 
-This folder is ready to be pushed to any git repository. Once pushed direct link to a git repository can be added to *Omniverse Kit* extension search paths.
+The following assumes that you are running the commands from the root of the repository.
 
-Link might look like this: `git://github.com/[user]/[your_repo].git?branch=main&dir=exts`
+## Managing Containers
 
-Notice `exts` is repo subfolder with extensions. More information can be found in "Git URL as Extension Search Paths" section of developers manual.
+Login to NGC and pull the image `nvcr.io/nvidia/isaac-sim:2023.1.1` by following [this guide](https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_container.html). Then build the docker images for the extension:
 
-To add a link to your *Omniverse Kit* based app go into: Extension Manager -> Gear Icon -> Extension Search Path
+```sh
+docker pull nvcr.io/nvidia/isaac-sim:2023.1.1
+docker compose build
+```
 
+Launch the containers:
+
+```sh
+# You might want to use `tmux` for exec-ing into the containers later
+xhost +local:docker
+docker compose up
+```
+
+Then follow the remaining sections.
+
+To remove and stop the containers, run:
+
+```sh
+docker compose down
+```
+
+### Nerfstudio Renderer
+
+Code: [`nerfstudio_renderer`](./nerfstudio_renderer)
+
+The renderer server would be listening on port `10001` upon successful startup:
+
+```
+INFO SLAVE/10001[MainThread]: server started on [0.0.0.0]:10001
+```
+
+After seeing the above logs, no additional steps are required for the renderer server.
+
+### PyGame Viewer
+
+Code: [`pygame_viewer`](./pygame_viewer)
+
+Attach to the container and run the testing script:
+
+```sh
+docker exec -it pygame-viewer /src/run.sh
+```
+
+The script may fail at the first run due to the cold start of the renderer server. If it fails, try run the script again.
+
+(TODO: Preview Video)
+
+### Isaac Sim Viewer
+
+Code: [`extension`](./extension)
+
+```sh
+docker exec -it isaac-sim-viewer bash
+# in container
+/isaac-sim/runapp.sh --ext-folder /src/exts --enable omni.nerf.viewport
+```
+
+(TODO: Preview Video x2)
+
+## Development Notes
+
+### Nerfstudio Renderer
+
+After modifying code, you need to remove and recreate the container to apply changes. This is because the container will copy and install the code upon startup.
+
+### PyGame Viewer
+
+After modifying code, you need to re-run the testing script. The docker container can be re-used since the code is mounted as a volume.
+
+### Isaac Sim Viewer
+
+Setup VSCode intellisense for the extension:
+
+```sh
+cd extension
+./link_app.sh --path "$HOME/.local/share/ov/pkg/code-2022.3.3"
+# open the `extension` folder in VSCode
+```
+
+After modifying code, you can restart Isaac Sim to apply changes. The docker container can be re-used since the code is mounted as a volume. If the change is small, it is often faster to disable and re-enable the extension in the Isaac Sim UI. This can be done through `Window > Extensions > NVIDIA > General`, search `nerf`, and then un-toggle and re-toggle the extension.
