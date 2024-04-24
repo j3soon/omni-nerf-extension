@@ -29,7 +29,11 @@ https://github.com/j3soon/omni-nerf-extension/assets/20457146/049ff215-7a68-477b
 
 > The UR5 Robotic Arm in [ElsaLab](https://github.com/elsa-lab).
 
-**Note**: The datasets for these demos are not provided in this repository as they are casually collected. The purpose of these demos is to illustrate that this repository can be readily applied to a variety of custom datasets. The following guide will use the `Poster` dataset for simplicity.
+https://github.com/j3soon/omni-nerf-extension/assets/20457146/3c9d657c-772d-4a83-9ac0-7af8c301d24f
+
+> The Husky UGV in [ElsaLab](https://github.com/elsa-lab).
+
+**Note**: The datasets for these demos are not provided in this repository as they are casually collected. The purpose of these demos is to illustrate that this repository can be readily applied to a variety of custom datasets with extremely low effort. The following guide will use the `Poster` dataset for simplicity.
 
 ## Setup
 
