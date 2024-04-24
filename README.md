@@ -25,6 +25,10 @@ https://github.com/j3soon/omni-nerf-extension/assets/20457146/40835ce5-5834-4631
 
 > Exterior of the Delta Building in National Tsing Hua University (NTHU). Collected by [@Howardkhh](https://github.com/Howardkhh).
 
+https://github.com/j3soon/omni-nerf-extension/assets/20457146/049ff215-7a68-477b-9bc3-57b4cb3a889e
+
+> The UR5 Robotic Arm in [ElsaLab](https://github.com/elsa-lab).
+
 **Note**: The datasets for these demos are not provided in this repository as they are casually collected. The purpose of these demos is to illustrate that this repository can be readily applied to a variety of custom datasets. The following guide will use the `Poster` dataset for simplicity.
 
 ## Setup
