@@ -21,7 +21,11 @@ https://github.com/j3soon/omni-nerf-extension/assets/20457146/4b022624-a172-40b5
 
 > At the exterior of the National Tsing Hua University (NTHU) swimming pool. Collected by [@muyishen2040](https://github.com/muyishen2040), which is also used in the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF).
 
-**Note**: The datasets for these demos are not provided in this repository as they are casually collected. The purpose of these demos is to illustrate that this repository can be readily applied to a variety of datasets. The following guide will use the `Poster` dataset for simplicity.
+https://github.com/j3soon/omni-nerf-extension/assets/20457146/40835ce5-5834-4631-aa17-1b591e402f27
+
+> Exterior of the Delta Building in National Tsing Hua University (NTHU). Collected by [@Howardkhh](https://github.com/Howardkhh).
+
+**Note**: The datasets for these demos are not provided in this repository as they are casually collected. The purpose of these demos is to illustrate that this repository can be readily applied to a variety of custom datasets. The following guide will use the `Poster` dataset for simplicity.
 
 ## Setup
 
