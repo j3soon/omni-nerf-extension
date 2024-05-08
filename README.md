@@ -45,7 +45,7 @@ cd omni-nerf-extension
 Download assets:
 
 ```sh
-wget https://github.com/j3soon/omni-nerf-extension/releases/download/v0.0.1/assets.zip
+wget https://github.com/j3soon/omni-nerf-extension/releases/download/v0.0.2/assets.zip
 unzip assets.zip
 ```
 
