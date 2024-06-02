@@ -122,6 +122,13 @@ docker exec -it isaac-sim-viewer bash
 /isaac-sim/runapp.sh --ext-folder /src/exts --enable omni.nerf.viewport
 ```
 
+![](docs/media/isaac-sim-steps.png)
+
+1. Select the folder `/workspace/usd`
+2. Open the file `example_scene.usd`
+3. Click the mesh that you added in Step 2.
+4. Press the button in NeRF Viewport to update the input mesh of NeRF.
+
 https://github.com/j3soon/omni-nerf-extension/assets/20457146/5203061a-3b23-4d72-8103-5e3a6e9923a7
 
 **Known Issues**:
