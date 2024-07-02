@@ -175,7 +175,7 @@ Special thanks to [@tigerpaws01](https://github.com/tigerpaws01) for the initial
 
 I would also like to thank the NeRF Study Group members, [@muyishen2040](https://github.com/muyishen2040), [@AndreaHsu](https://github.com/AndreaHsu), [@Howardkhh](https://github.com/Howardkhh), and [VickyHuang1113](https://github.com/VickyHuang1113). Numerous insights and experiences have been gained through the collaboration on the [DriveEnv-NeRF project](https://github.com/muyishen2040/DriveEnvNeRF), which has significantly accelerated the development process of this project.
 
-For a complete list of contributors to the code of this repository, please visit the [contributor list](https://github.com/j3soon/OmniIsaacGymEnvs-UR10Reacher/graphs/contributors).
+For a complete list of contributors to the code of this repository, please visit the [contributor list](https://github.com/j3soon/omni-nerf-extension/graphs/contributors).
 
 [![](docs/media/logos/elsalab.png)][elsalab]
 [![](docs/media/logos/nvaitc.png)][nvaitc]
