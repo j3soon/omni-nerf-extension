@@ -25,6 +25,7 @@ def main(args):
         conn.execute('from nerfstudio_renderer import NerfStudioRenderQueue')
         conn.execute('from pathlib import Path')
         conn.execute('import torch')
+        conn.execute('import numpy as np')
     else:
         from nerfstudio_renderer import NerfStudioRenderQueue
         from pathlib import Path
