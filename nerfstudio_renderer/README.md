@@ -127,7 +127,7 @@ docker compose build
 xhost +local:docker
 docker compose up
 # in new shell
-docker exec -it nerfstudio-renderer /workspace/tests/run_local.sh
+docker exec -it nerfstudio-renderer /pygame_viewer/run_local.sh
 ```
 
 The `run_local.sh` script will re-copy and re-install the package
