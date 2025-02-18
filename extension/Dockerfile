@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/isaac-sim:2023.1.1
+FROM nvcr.io/nvidia/isaac-sim:4.5.0
 # Ref: https://stackoverflow.com/a/53361581
 RUN apt-get update \
     && apt-get install -y libglib2.0-0 \
