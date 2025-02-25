@@ -140,6 +140,8 @@ docker exec -it isaac-sim-viewer bash
 
 https://github.com/j3soon/omni-nerf-extension/assets/20457146/5203061a-3b23-4d72-8103-5e3a6e9923a7
 
+https://github.com/user-attachments/assets/a1640eba-2cd0-497e-b47e-529190154677
+
 **Known Issues**:
 - Cannot correctly handling non-uniform scaling of the object mesh yet.
 
