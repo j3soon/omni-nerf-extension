@@ -8,7 +8,8 @@ import omni.ui as ui
 import omni.usd
 import rpyc
 import torch as th
-from omni.kit.viewport.utility import get_active_viewport
+from omni.kit.viewport.utility import get_active_viewport, get_active_viewport_window
+from omni.ui import scene as sc
 from pxr import Gf, Usd, UsdGeom
 
 
@@ -64,7 +65,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         if self.is_python_supported:
             self.init_rpyc()
         # Build UI
-        self.build_ui()
+        self.build_ui(ext_id)
         # Start worker thread
         self.should_stop = False
         self.worker_thread = threading.Thread(target=self._render_worker, daemon=True)
@@ -83,7 +84,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         self.rpyc_conn.execute('import torch')
         self.rpyc_conn.execute(f'rq = NerfStudioRenderQueue(model_config_path=Path("{model_config_path}"), checkpoint_path="{model_checkpoint_path}", device=torch.device("{device}"))')
 
-    def build_ui(self):
+    def build_ui(self, ext_id):
         """Build the UI. Should be called upon startup."""
         # Please refer to the `Omni::UI Doc` tab in Omniverse Code for efficient development.
         # Ref: https://youtu.be/j1Pwi1KRkhk
@@ -93,29 +94,12 @@ class OmniNerfViewportExtension(omni.ext.IExt):
 
         with self.ui_window.frame:
             with ui.ZStack():
-                # Camera Viewport
-                # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.kit.viewport.docs/latest/overview.html#simplest-example
-                # Don't create a new viewport widget as below, since the viewport widget will often flicker.
-                # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/release-notes/known-limits.html
-                # ```
-                # from omni.kit.widget.viewport import ViewportWidget
-                # self.ui_viewport_widget = ViewportWidget(
-                #     resolution = (640, 360),
-                #     width = 640,
-                #     height = 360,
-                # )
-                # self.viewport_api = self.ui_viewport_widget.viewport_api
-                # ````
-                # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/python-snippets/viewport/change-viewport-active-camera.html
-                # Instead, the viewport is obtained from the active viewport in new renderings.
-
                 # NeRF Viewport
                 # Examples on using ByteImageProvider can be found by installing Isaac Sim
                 # and searching for `set_bytes_data` under `~/.local/share/ov/pkg/isaac_sim-2023.1.1`.
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ByteImageProvider.html
                 # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.ui/latest/omni.ui/omni.ui.ImageWithProvider.html
                 self.ui_nerf_provider = ui.ByteImageProvider()
-                # TODO: Potentially optimize with `set_bytes_data_from_gpu`
                 self.ui_nerf_img = ui.ImageWithProvider(
                     self.ui_nerf_provider,
                     width=ui.Percent(100),
@@ -140,7 +124,34 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                             clicked_fn=self._on_btn_set_click,
                             tooltip="Get From Selection",
                         )
-                    ui.Button("Reset Camera", width=20, clicked_fn=self.on_btn_reset_click)
+                    ui.Button("Reset Camera", width=20, clicked_fn=self._on_btn_reset_click)
+                    with ui.HStack():
+                        ui.Label("Viewport Overlay", width=100)
+                        model = ui.CheckBox().model
+                        model.add_value_changed_fn(self._on_checkbox_value_changed)
+
+        # Camera Viewport
+        # Ref: https://docs.omniverse.nvidia.com/kit/docs/omni.kit.viewport.docs/latest/overview.html#simplest-example
+        # Don't create a new viewport widget as below, since the viewport widget will often flicker.
+        # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/release-notes/known-limits.html
+        # ```
+        # from omni.kit.widget.viewport import ViewportWidget
+        # self.ui_viewport_widget = ViewportWidget(
+        #     resolution = (640, 360),
+        #     width = 640,
+        #     height = 360,
+        # )
+        # self.viewport_api = self.ui_viewport_widget.viewport_api
+        # ````
+        # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/python-snippets/viewport/change-viewport-active-camera.html
+        # Instead, the viewport is obtained from the active viewport in new renderings.
+        self.viewport_window = get_active_viewport_window()
+        with self.viewport_window.get_frame(ext_id):
+            self.scene_view = sc.SceneView(
+                screen_aspect_ratio=self.rgba_w/self.rgba_h,
+            )
+        self.configure_viewport_overlay(False)
+
         self.update_ui()
 
     def update_ui(self):
@@ -148,10 +159,26 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # Ref: https://forums.developer.nvidia.com/t/refresh-window-ui/221200
         self.ui_window.frame.rebuild()
 
+    def configure_viewport_overlay(self, show_overlay: bool):
+        print(f"[omni.nerf.viewport] Configuring viewport overlay: {show_overlay}")
+        if not show_overlay:
+            if self.scene_view is not None:
+                self.scene_view.scene.clear()
+            return
+        # if show_overlay, then populate the scene view
+        with self.scene_view.scene:
+            # Screen coordinates are in [-1, 1]
+            # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/viewport_reticle.html
+            sc.Image(
+                self.ui_nerf_provider,
+                width=2,
+                height=2,
+            )
+
     def _on_btn_set_click(self):
         self._mesh_prim_model.as_string = self._get_selected_prim_path()
 
-    def on_btn_reset_click(self):
+    def _on_btn_reset_click(self):
         # TODO: Allow resetting the camera to a specific position
         # Below doesn't seem to work
         # stage: Usd.Stage = self.usd_context.get_stage()
@@ -162,6 +189,10 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # print("translateOp", prim.GetAttribute("xformOp:translate").Get())
         # print("rotateXYZOp", prim.GetAttribute("xformOp:rotateXYZ").Get())
         print("[omni.nerf.viewport] (TODO) Reset Camera")
+
+    def _on_checkbox_value_changed(self, model):
+        value = model.get_value_as_bool()
+        self.configure_viewport_overlay(value)
 
     def _get_selected_prim_path(self):
         """Get the selected prim. Return '' if no prim is selected."""
@@ -250,6 +281,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
             self.worker_thread.join(timeout=1.0)
         if self.is_python_supported:
             self.rpyc_conn.execute('del rq')
+        self.configure_viewport_overlay(False)
 
     def destroy(self):
         # Ref: https://docs.omniverse.nvidia.com/workflows/latest/extensions/object_info.html#step-3-4-use-usdcontext-to-listen-for-selection-changes
