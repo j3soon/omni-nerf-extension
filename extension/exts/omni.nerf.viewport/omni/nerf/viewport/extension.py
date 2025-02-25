@@ -7,6 +7,7 @@ import omni.ext
 import omni.ui as ui
 import omni.usd
 import rpyc
+import torch as th
 from omni.kit.viewport.utility import get_active_viewport
 from pxr import Gf, Usd, UsdGeom
 
@@ -56,7 +57,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
         # Ref: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/events.html#subscribe-to-update-events
         # Allocate memory
         self.rgba_w, self.rgba_h = 1280, 720 # Follow default camera resolution 1280x720
-        self.rgba = np.ones((self.rgba_h, self.rgba_w, 4), dtype=np.uint8) * 128
+        self.rgba = th.ones((self.rgba_h, self.rgba_w, 4), dtype=th.uint8, device="cuda") * 128
         """RGBA image buffer. The shape is (H, W, 4), following the NumPy convention."""
         self.rgba[:,:,3] = 255
         # Init RPyC connection
@@ -173,6 +174,7 @@ class OmniNerfViewportExtension(omni.ext.IExt):
     def _render_worker(self):
         """Worker thread that processes render requests when event is set"""
         print("[omni.nerf.viewport] Render worker started")
+        th.set_grad_enabled(False) # disable gradient calculation
         while not self.should_stop:
             # Wait for render event
             self.render_event.wait()
@@ -224,13 +226,13 @@ class OmniNerfViewportExtension(omni.ext.IExt):
                     if image is None:
                         continue
                     print("[omni.nerf.viewport] NeRF viewport updated")
-                    image = np.array(image) # received with shape (H*, W*, 3)
+                    image = np.asarray(image) # received with shape (H*, W*, 3)
                     image = cv2.resize(image, (self.rgba_w, self.rgba_h), interpolation=cv2.INTER_LINEAR) # resize to (H, W, 3)
-                    self.rgba[:,:,:3] = image * 255
+                    self.rgba[:,:,:3] = th.from_numpy(image * 255).to(device="cuda")
                 else:
                     # If python version is not supported, render the dummy image.
-                    self.rgba[:,:,:3] = (self.rgba[:,:,:3] + np.ones((self.rgba_h, self.rgba_w, 3), dtype=np.uint8)) % 256
-                self.ui_nerf_provider.set_bytes_data(self.rgba.flatten().tolist(), (self.rgba_w, self.rgba_h))
+                    self.rgba[:,:,:3] = ((self.rgba[:,:,:3].int() + 1) % 256).to(th.uint8)
+                self.ui_nerf_provider.set_bytes_data_from_gpu(self.rgba.data_ptr(), (self.rgba_w, self.rgba_h))
             except Exception as e:
                 print(f"[omni.nerf.viewport] Error in render worker: {e}")
         print("[omni.nerf.viewport] Render worker stopped")
