@@ -63,10 +63,9 @@ The following assumes that you are running the commands from the root of the rep
 
 ## Managing Containers
 
-Login to NGC and pull the image `nvcr.io/nvidia/isaac-sim:2023.1.1` by following [this guide](https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_container.html). Then build the docker images for the extension:
+Build the docker images for the extension:
 
 ```sh
-docker pull nvcr.io/nvidia/isaac-sim:2023.1.1
 docker compose build
 ```
 
@@ -121,6 +120,16 @@ docker exec -it isaac-sim-viewer bash
 # in container
 /isaac-sim/runapp.sh --ext-folder /src/exts --enable omni.nerf.viewport
 ```
+
+> Alternatively, you can use WebRTC by running:
+> 
+> ```sh
+> # in container
+> /isaac-sim/runheadless.webrtc.sh --ext-folder /src/exts --enable omni.nerf.viewport
+> ```
+> 
+> Wait for the `Isaac Sim Headless WebRTC App is loaded.` message,
+> and then visit <http://127.0.0.1:8211/streaming/webrtc-demo/?server=127.0.0.1> in Google Chrome.
 
 ![](docs/media/isaac-sim-steps.png)
 
