@@ -141,7 +141,6 @@ docker exec -it isaac-sim-viewer bash
 https://github.com/j3soon/omni-nerf-extension/assets/20457146/5203061a-3b23-4d72-8103-5e3a6e9923a7
 
 **Known Issues**:
-- The Omniverse UI seems to block the use of double-clicking when the extension is enabled. I believe this is due to the rendering updates interrupting the determination of the double-click event. This issue can be bypassed by using single left-clicks and right-clicks instead. Alternatively, move the NeRF Viewport to cover the default Viewport (such that the rendering stops).
 - Cannot correctly handling non-uniform scaling of the object mesh yet.
 
 ## Development Notes
