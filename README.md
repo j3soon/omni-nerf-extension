@@ -2,6 +2,8 @@
 
 Neural Radiance Field (NeRF) extension for Omniverse.
 
+> For 3D Gaussian Splatting (3DGS) support, please refer to the [Omniverse 3DGS Extension](https://github.com/j3soon/omni-3dgs-extension).
+
 ## Prerequisites
 
 - **Hardware**:
